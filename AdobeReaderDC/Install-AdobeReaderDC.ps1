@@ -76,13 +76,13 @@ $ProgressPreference = "SilentlyContinue"  # Speeds up Invoke-WebRequest
 
 $AppName = "Adobe Acrobat Reader DC"
 
-# Download URL templates (ardownload3.adobe.com)
+# Download URL templates (ardownload2.adobe.com - standard enterprise download server)
 if ($Architecture -eq "x64") {
-    $BaseUrlTemplate   = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/{0}/AcroRdrDCx64{0}_en_US.exe"
-    $UpdateUrlTemplate = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/{0}/AcroRdrDCx64Upd{0}.msp"
+    $BaseUrlTemplate   = "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/{0}/AcroRdrDCx64{0}_en_US.exe"
+    $UpdateUrlTemplate = "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/{0}/AcroRdrDCx64Upd{0}.msp"
 } else {
-    $BaseUrlTemplate   = "https://ardownload3.adobe.com/pub/adobe/reader/win/AcrobatDC/{0}/AcroRdrDC{0}_en_US.exe"
-    $UpdateUrlTemplate = "https://ardownload3.adobe.com/pub/adobe/reader/win/AcrobatDC/{0}/AcroRdrDCUpd{0}.msp"
+    $BaseUrlTemplate   = "https://ardownload2.adobe.com/pub/adobe/reader/win/AcrobatDC/{0}/AcroRdrDC{0}_en_US.exe"
+    $UpdateUrlTemplate = "https://ardownload2.adobe.com/pub/adobe/reader/win/AcrobatDC/{0}/AcroRdrDCUpd{0}.msp"
 }
 
 # Registry paths for customization (covers both full Acrobat and Acrobat Reader)
@@ -149,29 +149,45 @@ function Get-LatestReaderVersion {
     <#
     .SYNOPSIS
         Resolves the latest Adobe Reader DC continuous-track version number.
-        Uses the Adobe FTP directory listing as the primary source (fast, structured),
+        Uses Adobe's rdc.adobe.io enterprise API as the primary source (structured JSON),
         with the enterprise release notes HTML page as a fallback.
     #>
 
-    # Method 1: Query Adobe's update FTP directory listing (fast, structured)
-    Write-Log "Querying Adobe update directory for latest version..."
-    try {
-        $ftpUri = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/"
-        $response = Invoke-WebRequest -Uri $ftpUri -UseBasicParsing -TimeoutSec 60
+    # Method 1: Query Adobe's enterprise product API (structured JSON, reliable)
+    # Try both known API keys - Adobe has used different keys across their tools
+    $apiKeys = @("dc-get-acrdr-cdn", "dc-get-adobereader-cdn")
+    foreach ($apiKey in $apiKeys) {
+        Write-Log "Querying Adobe enterprise product API (key: $apiKey)..."
+        try {
+            $apiUri = "https://rdc.adobe.io/reader/products?lang=mui&site=enterprise&os=Windows%2011&api_key=$apiKey"
+            $response = Invoke-RestMethod -Uri $apiUri -UseBasicParsing -TimeoutSec 30
 
-        # Directory listing contains folder names that are the version numbers (e.g., "2500121208/")
-        $versionMatches = [regex]::Matches($response.Content, '(\d{10})/')
-        if ($versionMatches.Count -gt 0) {
-            # Get all versions, sort descending, take the latest
-            $versions = $versionMatches | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Descending -Unique
-            $latestFlat = $versions[0]
-            $latestDotted = "$($latestFlat.Substring(0,2)).$($latestFlat.Substring(2,3)).$($latestFlat.Substring(5,5))"
-            Write-Log "Latest version detected (from directory): $latestDotted ($latestFlat)"
-            return $latestFlat
+            # For MUI (multi-language), response may contain multiple entries; filter for architecture
+            $readerProducts = $response.products.reader
+            $versionDotted = $null
+            if ($Architecture -eq "x64") {
+                # Filter for 64-bit entry when available
+                $entry = $readerProducts | Where-Object { $_.displayName -match "64" } | Select-Object -First 1
+                if ($entry) { $versionDotted = $entry.version }
+            }
+            # Fall back to first entry if no architecture-specific match
+            if (-not $versionDotted) {
+                if ($readerProducts -is [array]) {
+                    $versionDotted = $readerProducts[0].version
+                } else {
+                    $versionDotted = $readerProducts.version
+                }
+            }
+
+            if ($versionDotted) {
+                $latestFlat = $versionDotted -replace '\.', ''
+                Write-Log "Latest version detected (from Adobe API): $versionDotted ($latestFlat)"
+                return $latestFlat
+            }
+            Write-Log "No version found in Adobe API response." -Level WARN
+        } catch {
+            Write-Log "Failed to query Adobe API (key: $apiKey): $($_.Exception.Message)" -Level WARN
         }
-        Write-Log "No version folders found in directory listing." -Level WARN
-    } catch {
-        Write-Log "Failed to query Adobe directory: $($_.Exception.Message)" -Level WARN
     }
 
     # Method 2: Fallback to scraping release notes HTML page
@@ -181,10 +197,10 @@ function Get-LatestReaderVersion {
         $response = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 60
 
         # Match version patterns like "25.001.21208"
-        $matches = [regex]::Matches($response.Content, '(\d{2}\.\d{3}\.\d{5})')
-        if ($matches.Count -gt 0) {
+        $versionMatches = [regex]::Matches($response.Content, '(\d{2}\.\d{3}\.\d{5})')
+        if ($versionMatches.Count -gt 0) {
             # Versions are listed newest-first; take the first match
-            $latestDotted = $matches[0].Value
+            $latestDotted = $versionMatches[0].Value
             # Convert dotted version to flat format: "25.001.21208" -> "2500121208"
             $latestFlat = $latestDotted -replace '\.', ''
             Write-Log "Latest version detected (from release notes): $latestDotted ($latestFlat)"
