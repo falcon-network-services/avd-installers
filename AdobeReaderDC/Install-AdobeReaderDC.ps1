@@ -155,7 +155,7 @@ function Get-LatestReaderVersion {
 
     # Method 1: Query Adobe's enterprise product API (structured JSON, reliable)
     # Try both known API keys - Adobe has used different keys across their tools
-    $apiKeys = @("dc-get-acrdr-cdn", "dc-get-adobereader-cdn")
+    $apiKeys = @("dc-get-adobereader-cdn", "dc-get-acrdr-cdn")
     foreach ($apiKey in $apiKeys) {
         Write-Log "Querying Adobe enterprise product API (key: $apiKey)..."
         try {
