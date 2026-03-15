@@ -148,13 +148,37 @@ function Get-InstalledReaderVersion {
 function Get-LatestReaderVersion {
     <#
     .SYNOPSIS
-        Scrapes the Adobe enterprise release notes index to find the latest
-        continuous-track version number.
+        Resolves the latest Adobe Reader DC continuous-track version number.
+        Uses the Adobe FTP directory listing as the primary source (fast, structured),
+        with the enterprise release notes HTML page as a fallback.
     #>
-    Write-Log "Querying Adobe release notes for latest version..."
+
+    # Method 1: Query Adobe's update FTP directory listing (fast, structured)
+    Write-Log "Querying Adobe update directory for latest version..."
+    try {
+        $ftpUri = "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/"
+        $response = Invoke-WebRequest -Uri $ftpUri -UseBasicParsing -TimeoutSec 60
+
+        # Directory listing contains folder names that are the version numbers (e.g., "2500121208/")
+        $versionMatches = [regex]::Matches($response.Content, '(\d{10})/')
+        if ($versionMatches.Count -gt 0) {
+            # Get all versions, sort descending, take the latest
+            $versions = $versionMatches | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Descending -Unique
+            $latestFlat = $versions[0]
+            $latestDotted = "$($latestFlat.Substring(0,2)).$($latestFlat.Substring(2,3)).$($latestFlat.Substring(5,5))"
+            Write-Log "Latest version detected (from directory): $latestDotted ($latestFlat)"
+            return $latestFlat
+        }
+        Write-Log "No version folders found in directory listing." -Level WARN
+    } catch {
+        Write-Log "Failed to query Adobe directory: $($_.Exception.Message)" -Level WARN
+    }
+
+    # Method 2: Fallback to scraping release notes HTML page
+    Write-Log "Trying fallback: Adobe enterprise release notes page..."
     try {
         $uri = "https://www.adobe.com/devnet-docs/acrobatetk/tools/ReleaseNotesDC/index.html"
-        $response = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 30
+        $response = Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec 60
 
         # Match version patterns like "25.001.21208"
         $matches = [regex]::Matches($response.Content, '(\d{2}\.\d{3}\.\d{5})')
@@ -163,7 +187,7 @@ function Get-LatestReaderVersion {
             $latestDotted = $matches[0].Value
             # Convert dotted version to flat format: "25.001.21208" -> "2500121208"
             $latestFlat = $latestDotted -replace '\.', ''
-            Write-Log "Latest version detected: $latestDotted ($latestFlat)"
+            Write-Log "Latest version detected (from release notes): $latestDotted ($latestFlat)"
             return $latestFlat
         }
     } catch {
