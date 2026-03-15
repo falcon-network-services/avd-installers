@@ -355,43 +355,32 @@ try {
             # Compare versions if both available
             if ($installed -and $installed.Version -eq $latestVersion) {
                 Write-Log "Already at latest version: $($installed.Version). Skipping download."
-                # Jump to customizations
-                Write-Log "-----------------------------------------------------------------"
-                Set-ChromeAVDCustomizations
-
-                Write-Log "-----------------------------------------------------------------"
-                $finalVer = Get-InstalledChromeVersion
-                if ($finalVer) {
-                    Write-Log "Final version: $($finalVer.Version)"
-                }
-
-                Write-Log "================================================================="
-                Write-Log "$AppName installation/update completed successfully."
-                Write-Log "================================================================="
-                exit 0
             }
         }
 
-        # Download latest Chrome Enterprise MSI
-        $versionLabel = if ($latestVersion) { $latestVersion } else { "latest" }
-        Write-Log "Downloading Chrome Enterprise $versionLabel..."
+        # Download latest Chrome Enterprise MSI (skip if already at latest)
+        $skipDownload = $installed -and $latestVersion -and $installed.Version -eq $latestVersion
+        if (-not $skipDownload) {
+            $versionLabel = if ($latestVersion) { $latestVersion } else { "latest" }
+            Write-Log "Downloading Chrome Enterprise $versionLabel..."
 
-        if (-not (Test-Path $DownloadPath)) {
-            New-Item -Path $DownloadPath -ItemType Directory -Force | Out-Null
-        }
+            if (-not (Test-Path $DownloadPath)) {
+                New-Item -Path $DownloadPath -ItemType Directory -Force | Out-Null
+            }
 
-        $msiFile = Join-Path $DownloadPath $MsiFileName
-        Start-FileDownload -Uri $DownloadUrl -OutFile $msiFile
+            $msiFile = Join-Path $DownloadPath $MsiFileName
+            Start-FileDownload -Uri $DownloadUrl -OutFile $msiFile
 
-        $preVersion = if ($installed) { $installed.Version } else { "none" }
-        $exitCode = Install-ChromeMSI -MsiPath $msiFile
+            $preVersion = if ($installed) { $installed.Version } else { "none" }
+            $exitCode = Install-ChromeMSI -MsiPath $msiFile
 
-        $postInstall = Get-InstalledChromeVersion
-        if ($postInstall) {
-            if ($postInstall.Version -ne $preVersion) {
-                Write-Log "Updated: $preVersion -> $($postInstall.Version)"
-            } else {
-                Write-Log "Version unchanged after install: $($postInstall.Version)"
+            $postInstall = Get-InstalledChromeVersion
+            if ($postInstall) {
+                if ($postInstall.Version -ne $preVersion) {
+                    Write-Log "Updated: $preVersion -> $($postInstall.Version)"
+                } else {
+                    Write-Log "Version unchanged after install: $($postInstall.Version)"
+                }
             }
         }
     } else {

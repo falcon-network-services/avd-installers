@@ -342,43 +342,32 @@ try {
             # Compare versions if we have both
             if ($installed -and $installed.Version -eq $latestESR.CleanVersion) {
                 Write-Log "Already at latest ESR version: $($installed.Version). Skipping download."
-                # Jump to customizations
-                Write-Log "-----------------------------------------------------------------"
-                Set-FirefoxAVDCustomizations
-
-                Write-Log "-----------------------------------------------------------------"
-                $finalVer = Get-InstalledFirefoxVersion
-                if ($finalVer) {
-                    Write-Log "Final version: $($finalVer.Version)"
-                }
-
-                Write-Log "================================================================="
-                Write-Log "$AppName installation/update completed successfully."
-                Write-Log "================================================================="
-                exit 0
             }
         }
 
-        # Download latest ESR MSI
-        $versionLabel = if ($latestESR) { $latestESR.FullVersion } else { "latest" }
-        Write-Log "Downloading Firefox ESR $versionLabel..."
+        # Download and install latest ESR MSI (skip if already at latest)
+        $skipDownload = $installed -and $latestESR -and $installed.Version -eq $latestESR.CleanVersion
+        if (-not $skipDownload) {
+            $versionLabel = if ($latestESR) { $latestESR.FullVersion } else { "latest" }
+            Write-Log "Downloading Firefox ESR $versionLabel..."
 
-        if (-not (Test-Path $DownloadPath)) {
-            New-Item -Path $DownloadPath -ItemType Directory -Force | Out-Null
-        }
+            if (-not (Test-Path $DownloadPath)) {
+                New-Item -Path $DownloadPath -ItemType Directory -Force | Out-Null
+            }
 
-        $msiFile = Join-Path $DownloadPath $MsiFileName
-        Start-FileDownload -Uri $DownloadUrl -OutFile $msiFile
+            $msiFile = Join-Path $DownloadPath $MsiFileName
+            Start-FileDownload -Uri $DownloadUrl -OutFile $msiFile
 
-        $preVersion = if ($installed) { $installed.Version } else { "none" }
-        $exitCode = Install-FirefoxESR -MsiPath $msiFile
+            $preVersion = if ($installed) { $installed.Version } else { "none" }
+            $exitCode = Install-FirefoxESR -MsiPath $msiFile
 
-        $postInstall = Get-InstalledFirefoxVersion
-        if ($postInstall) {
-            if ($postInstall.Version -ne $preVersion) {
-                Write-Log "Updated: $preVersion -> $($postInstall.Version)"
-            } else {
-                Write-Log "Version unchanged after install: $($postInstall.Version)"
+            $postInstall = Get-InstalledFirefoxVersion
+            if ($postInstall) {
+                if ($postInstall.Version -ne $preVersion) {
+                    Write-Log "Updated: $preVersion -> $($postInstall.Version)"
+                } else {
+                    Write-Log "Version unchanged after install: $($postInstall.Version)"
+                }
             }
         }
     } else {

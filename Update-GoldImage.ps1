@@ -149,7 +149,7 @@ $AppDefinitions = @(
         Name             = "AdobeReaderDC"
         DisplayName      = "Adobe Acrobat Reader DC"
         ScriptPath       = "AdobeReaderDC\Install-AdobeReaderDC.ps1"
-        SupportsSkipUpdate = $false
+        SupportsSkipUpdate = $true
     },
     @{
         Name             = "Microsoft365Apps"

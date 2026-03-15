@@ -50,6 +50,8 @@
 
 [CmdletBinding()]
 param(
+    [switch]$SkipUpdate,
+
     [ValidateSet("x64", "x86")]
     [string]$Architecture = "x64",
 
@@ -388,6 +390,11 @@ try {
         Write-Log "No existing Adobe Reader DC installation detected."
     }
 
+    # Perform install/update unless SkipUpdate is specified
+    if ($SkipUpdate) {
+        Write-Log "Skipping install/update (SkipUpdate specified). Applying customizations only."
+    } else {
+
     # Resolve target update version
     if (-not $UpdateVersion) {
         $UpdateVersion = Get-LatestReaderVersion
@@ -436,6 +443,8 @@ try {
     } else {
         Write-Log "Skipping install/update (no valid version resolved). Applying customizations only."
     }
+
+    } # end if (-not $SkipUpdate)
 
     # Apply AVD customizations
     Set-ReaderAVDCustomizations
