@@ -307,9 +307,8 @@ function Set-M365AVDCustomizations {
     Set-RegistryValue -Path $linkedInPath -Name "DisableLinkedInFeatures" -Value 1
 
     # -- Remove Desktop Shortcuts --
+    # Note: Edge and Teams shortcuts are handled by their own installer scripts
     $desktopShortcuts = @(
-        "$env:PUBLIC\Desktop\Microsoft Edge.lnk",
-        "$env:PUBLIC\Desktop\Microsoft Teams.lnk",
         "$env:PUBLIC\Desktop\Excel.lnk",
         "$env:PUBLIC\Desktop\Outlook.lnk",
         "$env:PUBLIC\Desktop\PowerPoint.lnk",
@@ -317,9 +316,7 @@ function Set-M365AVDCustomizations {
         "$env:PUBLIC\Desktop\OneNote.lnk",
         "$env:PUBLIC\Desktop\Access.lnk",
         "$env:PUBLIC\Desktop\Publisher.lnk",
-        "$env:PUBLIC\Desktop\Visio.lnk",
-        "C:\Users\Default\Desktop\Microsoft Edge.lnk",
-        "C:\Users\Default\Desktop\Microsoft Teams.lnk"
+        "$env:PUBLIC\Desktop\Visio.lnk"
     )
     foreach ($shortcut in $desktopShortcuts) {
         if (Test-Path $shortcut) {

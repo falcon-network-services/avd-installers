@@ -330,8 +330,8 @@ try {
             Write-Log "Could not resolve download URL. Skipping update, applying customizations only." -Level WARN
         } else {
             # Check if already at latest (normalize to handle 4-segment vs 3-segment mismatch)
-            $installedNorm = Get-NormalizedVersion $installed.Version
             $releaseNorm = Get-NormalizedVersion $release.Version
+            if ($installed) { $installedNorm = Get-NormalizedVersion $installed.Version } else { $installedNorm = "" }
             if ($installed -and $installedNorm -eq $releaseNorm) {
                 Write-Log "Already at latest version: $($installed.Version) (matches $($release.Version)). Skipping download."
             } else {
