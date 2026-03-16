@@ -20,7 +20,7 @@ Update-GoldImage.ps1          # Master orchestrator - runs all 12 apps in depend
 - `#Requires -RunAsAdministrator` at top
 - `Set-StrictMode -Version Latest` and `$ErrorActionPreference = "Stop"`
 - `$ProgressPreference = "SilentlyContinue"` to speed up web requests
-- Every script has its own `Write-Log`, `Set-RegistryValue`, and `Start-FileDownload` functions (standalone design, no shared modules)
+- Every script has its own `Write-Log`, `Set-RegistryValue`, and `Start-FileDownload` functions (standalone design, no shared modules). Exception: `Set-RegistryValue` is only required in scripts that apply registry customizations — scripts with no registry changes (VCRedist, WebRTCRedirector, NotepadPlusPlus) are exempt.
 - Logs go to `$env:SystemRoot\Logs\Software\`
 - Downloads use BITS with Invoke-WebRequest fallback (except for URLs with redirects, which use Invoke-WebRequest only)
 - File size validation after download
@@ -35,6 +35,8 @@ Update-GoldImage.ps1          # Master orchestrator - runs all 12 apps in depend
 - `-KeepInstallers` - Retain downloaded files
 - `-LogPath` - Log directory (default: `$env:SystemRoot\Logs\Software`)
 - `-DownloadPath` - Download directory (default: `$env:TEMP\{AppName}`)
+
+Exception: `-DownloadPath` and `-KeepInstallers` are only required in scripts that download files. Microsoft365Apps uses Click-to-Run and is exempt from both parameters.
 
 ### AVD Customizations (applied by every script)
 
