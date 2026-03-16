@@ -119,14 +119,11 @@ function Start-FileDownload {
     Write-Log "Destination: $OutFile"
 
     try {
-        if (Get-Command Start-BitsTransfer -ErrorAction SilentlyContinue) {
-            Start-BitsTransfer -Source $Uri -Destination $OutFile -Priority High -ErrorAction Stop
-        } else {
-            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -TimeoutSec 300
-        }
-    } catch {
-        Write-Log "BITS failed, falling back to Invoke-WebRequest: $($_.Exception.Message)" -Level WARN
+        # aka.ms download URL uses redirects, so use Invoke-WebRequest directly
         Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -TimeoutSec 300
+    } catch {
+        Write-Log "Download failed: $($_.Exception.Message)" -Level ERROR
+        throw
     }
 
     if (-not (Test-Path $OutFile)) {
