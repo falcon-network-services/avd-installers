@@ -182,6 +182,72 @@ function Start-FileDownload {
     }
 }
 
+function Test-ChromeMSIInstall {
+    <#
+    .SYNOPSIS
+        Checks whether Chrome was installed via MSI (enterprise) by looking for an
+        MsiExec uninstall string in the registry. Returns $true if MSI-based.
+    #>
+    $uninstallPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+    )
+    foreach ($regPath in $uninstallPaths) {
+        if (-not (Test-Path $regPath)) { continue }
+        $keys = Get-ChildItem -Path $regPath -ErrorAction SilentlyContinue
+        foreach ($key in $keys) {
+            $props = Get-ItemProperty -Path $key.PSPath -ErrorAction SilentlyContinue
+            if ($null -eq $props) { continue }
+            $name = $null; try { $name = $props.DisplayName } catch {}
+            if ($name -match 'Google Chrome') {
+                $uninstall = $null; try { $uninstall = $props.UninstallString } catch {}
+                if ($uninstall -match 'MsiExec') { return $true }
+                return $false
+            }
+        }
+    }
+    return $false
+}
+
+function Uninstall-Chrome {
+    <#
+    .SYNOPSIS
+        Removes a non-MSI Chrome installation using Chrome's own setup.exe --uninstall.
+    #>
+    Write-Log "Removing existing non-MSI Chrome installation..."
+
+    # Close Chrome and related processes
+    $processNames = @("chrome", "GoogleUpdate", "GoogleCrashHandler", "GoogleCrashHandler64", "setup")
+    foreach ($proc in $processNames) {
+        Get-Process -Name $proc -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+
+    # Try using Chrome's own uninstaller (setup.exe --uninstall)
+    $setupPaths = @(
+        "C:\Program Files\Google\Chrome\Application\*\Installer\setup.exe",
+        "C:\Program Files (x86)\Google\Chrome\Application\*\Installer\setup.exe"
+    )
+    $setupExe = $setupPaths | ForEach-Object { Resolve-Path $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+    if ($setupExe) {
+        Write-Log "Running Chrome uninstaller: $($setupExe.Path)"
+        $process = Start-Process -FilePath $setupExe.Path -ArgumentList "--uninstall --force-uninstall --system-level" -Wait -PassThru -NoNewWindow
+        Write-Log "Chrome uninstaller exit code: $($process.ExitCode)"
+    }
+
+    # Clean up remaining Chrome directories
+    $chromeDirs = @(
+        "C:\Program Files\Google\Chrome",
+        "C:\Program Files (x86)\Google\Chrome"
+    )
+    foreach ($dir in $chromeDirs) {
+        if (Test-Path $dir) {
+            Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Log "Removed directory: $dir"
+        }
+    }
+}
+
 function Install-ChromeMSI {
     param([string]$MsiPath)
 
@@ -388,6 +454,12 @@ try {
 
             $msiFile = Join-Path $DownloadPath $MsiFileName
             Start-FileDownload -Uri $DownloadUrl -OutFile $msiFile
+
+            # If Chrome is installed but NOT via MSI, uninstall first so the enterprise MSI can install cleanly
+            if ($installed -and -not (Test-ChromeMSIInstall)) {
+                Write-Log "Existing Chrome was not installed via MSI (enterprise). Removing before MSI install..." -Level WARN
+                Uninstall-Chrome
+            }
 
             $preVersion = if ($installed) { $installed.Version } else { "none" }
             $exitCode = Install-ChromeMSI -MsiPath $msiFile
