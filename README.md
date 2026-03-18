@@ -12,22 +12,22 @@ Copy `apps.example.json` to `C:\Scripts\apps.json` on the gold image and trim it
 {
     "apps": [
         { "name": "VCRedist" },
+        { "name": "PowerShell7" },
         { "name": "MicrosoftEdge" },
         { "name": "GoogleChrome" },
+        { "name": "FirefoxESR" },
+        { "name": "AdobeReaderDC" },
         { "name": "Microsoft365Apps", "parameters": { "TenantId": "contoso.onmicrosoft.com" } },
         { "name": "OneDrive", "parameters": { "TenantId": "contoso.onmicrosoft.com" } },
-        { "name": "MicrosoftTeams" }
+        { "name": "MicrosoftTeams" },
+        { "name": "WebRTCRedirector" },
+        { "name": "NotepadPlusPlus" },
+        { "name": "Bitwarden" }
     ]
 }
 ```
 
 ### 2. Run the bootstrap one-liner (elevated PowerShell)
-
-**Public repository:**
-
-```powershell
-$f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falconnoclaf/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;Remove-Item $f -Force
-```
 
 **Private repository** (replace `<PAT>` with a GitHub Personal Access Token that has Contents read permission):
 
