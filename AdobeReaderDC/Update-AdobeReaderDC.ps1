@@ -281,10 +281,44 @@ function Install-ReaderUpdate {
     $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
     Write-Log "Update patch exit code: $($process.ExitCode)"
 
-    if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 1618 -and $process.ExitCode -ne 3010) {
+    if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 1618 -and $process.ExitCode -ne 3010 -and $process.ExitCode -ne 1642) {
         throw "$AppName update failed with exit code $($process.ExitCode)"
     }
     return $process.ExitCode
+}
+
+function Uninstall-Reader {
+    <#
+    .SYNOPSIS
+        Uninstalls the currently installed Adobe Reader via its uninstall string.
+    #>
+    param([PSCustomObject]$InstalledInfo)
+
+    Write-Log "Uninstalling: $($InstalledInfo.DisplayName) $($InstalledInfo.DisplayVersion)..."
+
+    # Close running processes
+    $readerProcesses = @("AcroRd32", "Acrobat", "AcroCEF", "AdobeARM", "AdobeCollabSync")
+    foreach ($proc in $readerProcesses) {
+        Get-Process -Name $proc -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+
+    # Extract product code from uninstall string (e.g., MsiExec.exe /I{AC76BA86-...})
+    $productCode = $null
+    if ($InstalledInfo.UninstallString -match '\{[A-F0-9\-]+\}') {
+        $productCode = $Matches[0]
+    }
+
+    if ($productCode) {
+        $logFile = Join-Path $LogPath "AdobeReaderDC-Uninstall.log"
+        $arguments = "/x `"$productCode`" /qn /norestart /L*v `"$logFile`""
+        $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+        Write-Log "Uninstall exit code: $($process.ExitCode)"
+        if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 1618 -and $process.ExitCode -ne 3010) {
+            throw "$AppName uninstall failed with exit code $($process.ExitCode)"
+        }
+    } else {
+        throw "Could not extract product code from uninstall string: $($InstalledInfo.UninstallString)"
+    }
 }
 
 function Set-ReaderAVDCustomizations {
@@ -478,7 +512,29 @@ try {
             $updateFile = Join-Path $DownloadPath (Split-Path $updateUrl -Leaf)
             Start-FileDownload -Uri $updateUrl -OutFile $updateFile
             $exitCode = Install-ReaderUpdate -PatchPath $updateFile
-            Write-Log "Update applied (exit code: $exitCode)."
+
+            if ($exitCode -eq 1642) {
+                Write-Log "Patch not applicable to installed version (exit code 1642). Uninstalling and performing fresh install..." -Level WARN
+                Uninstall-Reader -InstalledInfo $installed
+
+                # Download base installer and do fresh install
+                $baseUrl = $BaseUrlTemplate -f $BaseVersion
+                $baseFile = Join-Path $DownloadPath (Split-Path $baseUrl -Leaf)
+                Start-FileDownload -Uri $baseUrl -OutFile $baseFile
+                $exitCode = Install-ReaderBase -InstallerPath $baseFile
+                Write-Log "Base installation completed (exit code: $exitCode)."
+
+                # Apply update patch on top of fresh base
+                if ($UpdateVersion -ne $BaseVersion) {
+                    $exitCode = Install-ReaderUpdate -PatchPath $updateFile
+                    if ($exitCode -eq 1642) {
+                        throw "$AppName update patch still not applicable after fresh base install (exit code 1642)"
+                    }
+                    Write-Log "Update patch applied (exit code: $exitCode)."
+                }
+            } else {
+                Write-Log "Update applied (exit code: $exitCode)."
+            }
         }
     } else {
         Write-Log "Skipping install/update (no valid version resolved). Applying customizations only."
