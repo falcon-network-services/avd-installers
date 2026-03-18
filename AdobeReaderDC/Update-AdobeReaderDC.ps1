@@ -483,6 +483,17 @@ try {
 
     # Install/Update only if we have a valid target version
     if ($UpdateVersion) {
+        # Check if already at the target version (compare flat formats)
+        if ($installed -and $installed.DisplayVersion) {
+            $installedFlat = $installed.DisplayVersion -replace '\.', ''
+            if ($installedFlat -eq $UpdateVersion) {
+                Write-Log "Already at target version: $($installed.DisplayVersion) ($UpdateVersion). Skipping download."
+                $UpdateVersion = $null  # Skip install, fall through to customizations
+            }
+        }
+    }
+
+    if ($UpdateVersion) {
         # Fresh Install Path
         if (-not $installed) {
             Write-Log "Performing fresh installation..."
