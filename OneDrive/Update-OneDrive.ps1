@@ -248,24 +248,47 @@ try {
     # Perform update
     if (-not $SkipUpdate) {
         Write-Log "-----------------------------------------------------------------"
-        Write-Log "Downloading latest OneDrive installer..."
 
-        if (-not (Test-Path $DownloadPath)) {
-            New-Item -Path $DownloadPath -ItemType Directory -Force | Out-Null
+        # Resolve the redirect URL to extract the latest version without downloading
+        $latestVersion = $null
+        try {
+            $headResponse = Invoke-WebRequest -Uri $DownloadUrl -Method Head -UseBasicParsing -MaximumRedirection 5 -ErrorAction Stop
+            $resolvedUrl = $headResponse.BaseResponse.ResponseUri.AbsoluteUri
+            if (-not $resolvedUrl) {
+                # PowerShell 7 uses RequestMessage.RequestUri instead
+                $resolvedUrl = $headResponse.BaseResponse.RequestMessage.RequestUri.AbsoluteUri
+            }
+            if ($resolvedUrl -match '/(\d+\.\d+\.\d+\.\d+)/') {
+                $latestVersion = $Matches[1]
+                Write-Log "Latest OneDrive version: $latestVersion"
+            }
+        } catch {
+            Write-Log "Could not resolve latest version from URL: $($_.Exception.Message)" -Level WARN
         }
 
-        $installerFile = Join-Path $DownloadPath $InstallerFileName
-        Start-FileDownload -Uri $DownloadUrl -OutFile $installerFile
+        # Skip download if already at latest version
+        if ($installed -and $latestVersion -and $installed.Version -eq $latestVersion) {
+            Write-Log "Already at latest version: $($installed.Version). Skipping download."
+        } else {
+            Write-Log "Downloading latest OneDrive installer..."
 
-        $preVersion = if ($installed) { $installed.Version } else { "none" }
-        $exitCode = Install-OneDrive -InstallerPath $installerFile
+            if (-not (Test-Path $DownloadPath)) {
+                New-Item -Path $DownloadPath -ItemType Directory -Force | Out-Null
+            }
 
-        $postInstall = Get-InstalledOneDriveVersion
-        if ($postInstall) {
-            if ($postInstall.Version -ne $preVersion) {
-                Write-Log "Updated: $preVersion -> $($postInstall.Version)"
-            } else {
-                Write-Log "Already at latest version: $($postInstall.Version)"
+            $installerFile = Join-Path $DownloadPath $InstallerFileName
+            Start-FileDownload -Uri $DownloadUrl -OutFile $installerFile
+
+            $preVersion = if ($installed) { $installed.Version } else { "none" }
+            $exitCode = Install-OneDrive -InstallerPath $installerFile
+
+            $postInstall = Get-InstalledOneDriveVersion
+            if ($postInstall) {
+                if ($postInstall.Version -ne $preVersion) {
+                    Write-Log "Updated: $preVersion -> $($postInstall.Version)"
+                } else {
+                    Write-Log "Already at latest version: $($postInstall.Version)"
+                }
             }
         }
     } else {
