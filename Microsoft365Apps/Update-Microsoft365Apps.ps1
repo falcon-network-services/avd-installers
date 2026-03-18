@@ -208,18 +208,40 @@ function Invoke-M365Update {
 
     Write-Log "OfficeC2RClient.exe exited with code: $($updateProcess.ExitCode)"
 
-    # The C2R client spawns background processes. Wait for OfficeClickToRun.exe to finish updating.
+    # The C2R client spawns background processes. Wait for the update scenario to complete.
+    # OfficeClickToRun.exe is always running (it's the C2R service), so instead of waiting
+    # for the process to exit, we monitor the ExecutingScenario registry value. When the
+    # service is actively updating, this contains a scenario name (e.g., "UPDATE"). When
+    # idle, it is empty. We also check for version changes as a secondary signal.
     $waitStart = Get-Date
     $maxWaitMinutes = 30
-    while (((Get-Date) - $waitStart).TotalMinutes -lt $maxWaitMinutes) {
-        $c2rService = Get-Process -Name "OfficeClickToRun" -ErrorAction SilentlyContinue
-        if (-not $c2rService) { break }
+    $scenarioRegPath = "HKLM:\SOFTWARE\Microsoft\Office\ClickToRun"
+    $idleChecks = 0
+    $requiredIdleChecks = 3  # Require 3 consecutive idle checks (30 seconds) to confirm completion
 
+    while (((Get-Date) - $waitStart).TotalMinutes -lt $maxWaitMinutes) {
         # Check if version has changed
         $currentInfo = Get-M365InstallInfo
         if ($currentInfo.Version -ne $lastVersion) {
             Write-Log "Version changed from $lastVersion to $($currentInfo.Version)"
             break
+        }
+
+        # Check if C2R service is still executing an update scenario
+        $scenario = $null
+        try { $scenario = (Get-ItemProperty -Path $scenarioRegPath -Name "ExecutingScenario" -ErrorAction SilentlyContinue).ExecutingScenario } catch {}
+
+        if ([string]::IsNullOrEmpty($scenario)) {
+            $idleChecks++
+            if ($idleChecks -ge $requiredIdleChecks) {
+                Write-Log "Click-to-Run service is idle (no active update scenario)."
+                break
+            }
+        } else {
+            $idleChecks = 0
+            if ($idleChecks -eq 0 -and ((Get-Date) - $waitStart).TotalSeconds -lt 30) {
+                Write-Log "Active scenario: $scenario"
+            }
         }
 
         Start-Sleep -Seconds 10
