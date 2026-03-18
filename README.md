@@ -24,13 +24,13 @@ AVD-Gold-Image-Apps/
 ├── Update-GoldImage.ps1              # Master orchestrator
 ├── README.md
 ├── AdobeReaderDC/
-│   └── Install-AdobeReaderDC.ps1
+│   └── Update-AdobeReaderDC.ps1
 ├── Bitwarden/
-│   └── Install-Bitwarden.ps1
+│   └── Update-Bitwarden.ps1
 ├── FirefoxESR/
-│   └── Install-FirefoxESR.ps1
+│   └── Update-FirefoxESR.ps1
 ├── GoogleChrome/
-│   └── Install-GoogleChrome.ps1
+│   └── Update-GoogleChrome.ps1
 ├── Microsoft365Apps/
 │   └── Update-Microsoft365Apps.ps1
 ├── MicrosoftEdge/
@@ -38,11 +38,11 @@ AVD-Gold-Image-Apps/
 ├── MicrosoftTeams/
 │   └── Update-MicrosoftTeams.ps1
 ├── NotepadPlusPlus/
-│   └── Install-NotepadPlusPlus.ps1
+│   └── Update-NotepadPlusPlus.ps1
 ├── OneDrive/
 │   └── Update-OneDrive.ps1
 ├── PowerShell7/
-│   └── Install-PowerShell7.ps1
+│   └── Update-PowerShell7.ps1
 ├── VCRedist/
 │   └── Update-VCRedist.ps1
 └── WebRTCRedirector/
@@ -113,7 +113,7 @@ Use these names with `-Only` and `-Exclude`:
 
 ### Adobe Acrobat Reader DC
 
-**Script:** `AdobeReaderDC\Install-AdobeReaderDC.ps1`
+**Script:** `AdobeReaderDC\Update-AdobeReaderDC.ps1`
 
 Downloads and installs Adobe Acrobat Reader DC. Handles both fresh installs (base installer + patch) and updates (patch only) to existing installations.
 
@@ -138,7 +138,7 @@ Downloads and installs Adobe Acrobat Reader DC. Handles both fresh installs (bas
 
 ### Bitwarden
 
-**Script:** `Bitwarden\Install-Bitwarden.ps1`
+**Script:** `Bitwarden\Update-Bitwarden.ps1`
 
 Downloads the latest Bitwarden desktop client from GitHub Releases and installs it silently.
 
@@ -158,7 +158,7 @@ Downloads the latest Bitwarden desktop client from GitHub Releases and installs 
 
 ### Mozilla Firefox ESR
 
-**Script:** `FirefoxESR\Install-FirefoxESR.ps1`
+**Script:** `FirefoxESR\Update-FirefoxESR.ps1`
 
 Downloads and installs Mozilla Firefox ESR (Extended Support Release) via the official MSI installer.
 
@@ -182,7 +182,7 @@ Downloads and installs Mozilla Firefox ESR (Extended Support Release) via the of
 
 ### Google Chrome Enterprise
 
-**Script:** `GoogleChrome\Install-GoogleChrome.ps1`
+**Script:** `GoogleChrome\Update-GoogleChrome.ps1`
 
 Downloads and installs the Google Chrome Standalone Enterprise MSI (64-bit).
 
@@ -276,7 +276,7 @@ Downloads the Teams bootstrapper and provisions the latest Teams MSIX package fo
 
 ### Notepad++
 
-**Script:** `NotepadPlusPlus\Install-NotepadPlusPlus.ps1`
+**Script:** `NotepadPlusPlus\Update-NotepadPlusPlus.ps1`
 
 Downloads the latest Notepad++ x64 installer from GitHub Releases and installs it silently.
 
@@ -318,7 +318,7 @@ Downloads the latest OneDrive per-machine installer from Microsoft and installs 
 
 ### PowerShell 7
 
-**Script:** `PowerShell7\Install-PowerShell7.ps1`
+**Script:** `PowerShell7\Update-PowerShell7.ps1`
 
 Downloads the latest PowerShell 7 MSI from GitHub Releases and installs it silently.
 

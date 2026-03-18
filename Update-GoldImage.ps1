@@ -124,7 +124,7 @@ $AppDefinitions = @(
     @{
         Name             = "PowerShell7"
         DisplayName      = "PowerShell 7"
-        ScriptPath       = "PowerShell7\Install-PowerShell7.ps1"
+        ScriptPath       = "PowerShell7\Update-PowerShell7.ps1"
         SupportsSkipUpdate = $true
     },
     @{
@@ -136,19 +136,19 @@ $AppDefinitions = @(
     @{
         Name             = "GoogleChrome"
         DisplayName      = "Google Chrome Enterprise"
-        ScriptPath       = "GoogleChrome\Install-GoogleChrome.ps1"
+        ScriptPath       = "GoogleChrome\Update-GoogleChrome.ps1"
         SupportsSkipUpdate = $true
     },
     @{
         Name             = "FirefoxESR"
         DisplayName      = "Mozilla Firefox ESR"
-        ScriptPath       = "FirefoxESR\Install-FirefoxESR.ps1"
+        ScriptPath       = "FirefoxESR\Update-FirefoxESR.ps1"
         SupportsSkipUpdate = $true
     },
     @{
         Name             = "AdobeReaderDC"
         DisplayName      = "Adobe Acrobat Reader DC"
-        ScriptPath       = "AdobeReaderDC\Install-AdobeReaderDC.ps1"
+        ScriptPath       = "AdobeReaderDC\Update-AdobeReaderDC.ps1"
         SupportsSkipUpdate = $true
     },
     @{
@@ -178,13 +178,13 @@ $AppDefinitions = @(
     @{
         Name             = "NotepadPlusPlus"
         DisplayName      = "Notepad++"
-        ScriptPath       = "NotepadPlusPlus\Install-NotepadPlusPlus.ps1"
+        ScriptPath       = "NotepadPlusPlus\Update-NotepadPlusPlus.ps1"
         SupportsSkipUpdate = $true
     },
     @{
         Name             = "Bitwarden"
         DisplayName      = "Bitwarden"
-        ScriptPath       = "Bitwarden\Install-Bitwarden.ps1"
+        ScriptPath       = "Bitwarden\Update-Bitwarden.ps1"
         SupportsSkipUpdate = $true
     }
 )

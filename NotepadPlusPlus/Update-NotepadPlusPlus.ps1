@@ -21,11 +21,11 @@
     Directory for log files. Defaults to $env:SystemRoot\Logs\Software.
 
 .EXAMPLE
-    .\Install-NotepadPlusPlus.ps1
+    .\Update-NotepadPlusPlus.ps1
     Updates Notepad++ to the latest version and disables auto-update.
 
 .EXAMPLE
-    .\Install-NotepadPlusPlus.ps1 -SkipUpdate
+    .\Update-NotepadPlusPlus.ps1 -SkipUpdate
     Only disables auto-update and applies customizations.
 
 .NOTES

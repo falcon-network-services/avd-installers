@@ -8,7 +8,7 @@ PowerShell scripts for maintaining Azure Virtual Desktop (AVD) Gold Images. Each
 
 ```
 Update-GoldImage.ps1          # Master orchestrator - runs all 12 apps in dependency order
-{AppName}/{Install|Update}-{AppName}.ps1   # Individual installer scripts (standalone)
+{AppName}/Update-{AppName}.ps1   # Individual updater scripts (standalone)
 ```
 
 **12 applications:** VCRedist, PowerShell7, MicrosoftEdge, GoogleChrome, FirefoxESR, AdobeReaderDC, Microsoft365Apps, OneDrive, MicrosoftTeams, WebRTCRedirector, NotepadPlusPlus, Bitwarden

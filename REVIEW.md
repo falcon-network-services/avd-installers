@@ -10,7 +10,7 @@ Reviewed all 12 application installer scripts plus the master orchestrator (`Upd
 
 ### 1. Bitwarden: Null reference when not installed (CRITICAL)
 
-**File:** `Bitwarden/Install-Bitwarden.ps1:333`
+**File:** `Bitwarden/Update-Bitwarden.ps1:333`
 
 **Problem:** When Bitwarden is not installed (`$installed` is `$null`) but a GitHub release is found, the script calls `Get-NormalizedVersion $installed.Version` unconditionally. This throws `You cannot call a method on a null-valued expression` before the null guard on line 335 can protect it.
 
@@ -22,7 +22,7 @@ Reviewed all 12 application installer scripts plus the master orchestrator (`Upd
 
 ### 2. Chrome/Firefox: Early exit skips cleanup and duplicates customizations
 
-**Files:** `GoogleChrome/Install-GoogleChrome.ps1:354-372`, `FirefoxESR/Install-FirefoxESR.ps1:343-359`
+**Files:** `GoogleChrome/Update-GoogleChrome.ps1:354-372`, `FirefoxESR/Update-FirefoxESR.ps1:343-359`
 
 **Problem:** When the installed version matches the latest, both scripts had an early `exit 0` path that:
 - Called `Set-*AVDCustomizations` and exited, but skipped the cleanup block at the end
@@ -40,7 +40,7 @@ Reviewed all 12 application installer scripts plus the master orchestrator (`Upd
 
 ### 4. Adobe Reader DC: Missing `-SkipUpdate` parameter
 
-**File:** `AdobeReaderDC/Install-AdobeReaderDC.ps1`
+**File:** `AdobeReaderDC/Update-AdobeReaderDC.ps1`
 
 **Problem:** Adobe Reader DC was the only installer without a `-SkipUpdate` parameter. The orchestrator correctly had `SupportsSkipUpdate = $false`, but this meant running `Update-GoldImage.ps1 -SkipUpdate` would still attempt to download and install Adobe Reader while all other apps would skip.
 
