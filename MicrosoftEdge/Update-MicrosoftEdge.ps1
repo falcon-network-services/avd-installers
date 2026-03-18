@@ -325,6 +325,8 @@ try {
         $edgeRelease = Get-LatestEdgeMsiUrl
         if (-not $edgeRelease) {
             Write-Log "Could not resolve Edge download URL. Skipping update, applying customizations only." -Level WARN
+        } elseif ($installed -and $edgeRelease.Version -eq $installed.Version) {
+            Write-Log "Already at latest version: $($installed.Version). Skipping download."
         } else {
             Write-Log "Downloading Edge $($edgeRelease.Version) MSI..."
 
