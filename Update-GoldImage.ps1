@@ -251,7 +251,7 @@ if ($invalidNames.Count -gt 0) {
 
 # Validate per-app parameters against the catalog
 foreach ($appEntry in $config.apps) {
-    if ($appEntry.parameters) {
+    if ($appEntry.PSObject.Properties['parameters']) {
         $catalogEntry = $AppDefinitions | Where-Object { $_.Name -eq $appEntry.name }
         $paramNames = ($appEntry.parameters | Get-Member -MemberType NoteProperty).Name
         foreach ($paramName in $paramNames) {
@@ -347,7 +347,7 @@ try {
 
             # Add per-app parameters from config
             $appConfig = $configLookup[$app.Name]
-            if ($appConfig.parameters) {
+            if ($appConfig.PSObject.Properties['parameters']) {
                 $paramMembers = ($appConfig.parameters | Get-Member -MemberType NoteProperty).Name
                 foreach ($paramName in $paramMembers) {
                     $scriptArgs[$paramName] = $appConfig.parameters.$paramName
