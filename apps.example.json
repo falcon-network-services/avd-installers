@@ -1,0 +1,46 @@
+{
+    "apps": [
+        {
+            "name": "VCRedist",
+            "_comment": "Optional params: x64Only (bool) - only install x64 redistributable"
+        },
+        {
+            "name": "PowerShell7"
+        },
+        {
+            "name": "MicrosoftEdge",
+            "_comment": "Optional params: Architecture (x64|x86)"
+        },
+        {
+            "name": "GoogleChrome"
+        },
+        {
+            "name": "FirefoxESR"
+        },
+        {
+            "name": "AdobeReaderDC",
+            "_comment": "Optional params: Architecture (x64|x86), BaseVersion, UpdateVersion"
+        },
+        {
+            "name": "Microsoft365Apps",
+            "_comment": "Optional params: TargetVersion (e.g. 16.0.19530.20226), TenantId (e.g. contoso.onmicrosoft.com)"
+        },
+        {
+            "name": "OneDrive",
+            "_comment": "Optional params: TenantId (Entra ID tenant for Known Folder Move)"
+        },
+        {
+            "name": "MicrosoftTeams",
+            "_comment": "Optional params: OfflineMsix (path to local MSIX for offline install)"
+        },
+        {
+            "name": "WebRTCRedirector"
+        },
+        {
+            "name": "NotepadPlusPlus"
+        },
+        {
+            "name": "Bitwarden"
+        }
+    ]
+}

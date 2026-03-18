@@ -4,7 +4,10 @@
       "Bash(git mv:*)",
       "Bash(pwsh -NoProfile -Command '$hasErrors = $false; Get-ChildItem -Path . -Filter \"*.ps1\" -Recurse | ForEach-Object { $e = $null; [System.Management.Automation.Language.Parser]::ParseFile\\($_.FullName, [ref]$null, [ref]$e\\); if \\($e\\) { $hasErrors = $true; $e | ForEach-Object { Write-Output \"ERROR: $\\($_.Extent.File\\):$\\($_.Extent.StartLineNumber\\) - $\\($_.Message\\)\" } } }; if \\(-not $hasErrors\\) { Write-Output \"All scripts pass syntax validation.\" }')",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile\\(\"./Update-GoldImage.ps1\", [ref]$null, [ref]$e\\); if \\($e\\) { $e | ForEach-Object { Write-Output \"ERROR: $\\($_.Extent.File\\):$\\($_.Extent.StartLineNumber\\) - $\\($_.Message\\)\" }; exit 1 } else { Write-Output \"OK\" }')",
+      "Bash(pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile\\(\"./Invoke-GoldImage.ps1\", [ref]$null, [ref]$e\\); if \\($e\\) { $e | ForEach-Object { Write-Output \"ERROR: $\\($_.Extent.File\\):$\\($_.Extent.StartLineNumber\\) - $\\($_.Message\\)\" }; exit 1 } else { Write-Output \"OK\" }')",
+      "Bash(python -m json.tool apps.example.json)"
     ]
   }
 }

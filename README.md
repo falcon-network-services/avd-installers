@@ -4,15 +4,41 @@ PowerShell scripts for maintaining Azure Virtual Desktop (AVD) Gold Images. Each
 
 ## Quick Start
 
+### 1. Create a config file on each gold image
+
+Copy `apps.example.json` to `C:\Scripts\apps.json` on the gold image and trim it to the apps you need:
+
+```json
+{
+    "apps": [
+        { "name": "VCRedist" },
+        { "name": "MicrosoftEdge" },
+        { "name": "GoogleChrome" },
+        { "name": "Microsoft365Apps", "parameters": { "TenantId": "contoso.onmicrosoft.com" } },
+        { "name": "OneDrive", "parameters": { "TenantId": "contoso.onmicrosoft.com" } },
+        { "name": "MicrosoftTeams" }
+    ]
+}
+```
+
+### 2. Run the bootstrap one-liner (elevated PowerShell)
+
+**Public repository:**
+
 ```powershell
-# Update all 12 applications in one run
-.\Update-GoldImage.ps1
+$f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falconnoclaf/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;Remove-Item $f -Force
+```
 
-# Update specific apps only
-.\Update-GoldImage.ps1 -Only "GoogleChrome", "MicrosoftEdge"
+**Private repository** (replace `<PAT>` with a GitHub Personal Access Token that has Contents read permission):
 
-# Apply customizations without downloading or installing
-.\Update-GoldImage.ps1 -SkipUpdate
+```powershell
+$f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falconnoclaf/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;Remove-Item $f -Force
+```
+
+**Customizations only** (no downloads/installs):
+
+```powershell
+$f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falconnoclaf/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f -SkipUpdate;Remove-Item $f -Force
 ```
 
 > All scripts require **Run as Administrator**. Logs are written to `%SystemRoot%\Logs\Software\`.
@@ -20,8 +46,10 @@ PowerShell scripts for maintaining Azure Virtual Desktop (AVD) Gold Images. Each
 ## Repository Structure
 
 ```
-AVD-Gold-Image-Apps/
-├── Update-GoldImage.ps1              # Master orchestrator
+avd-installers/
+├── Update-GoldImage.ps1              # Config-driven orchestrator
+├── Invoke-GoldImage.ps1              # Bootstrap script (downloads orchestrator)
+├── apps.example.json                 # Template config file
 ├── README.md
 ├── AdobeReaderDC/
 │   └── Update-AdobeReaderDC.ps1
@@ -49,18 +77,61 @@ AVD-Gold-Image-Apps/
     └── Update-WebRTCRedirector.ps1
 ```
 
-## Master Orchestrator
+## Configuration
 
-**`Update-GoldImage.ps1`** runs all 12 application scripts sequentially in dependency order. Each application is wrapped in its own error boundary so a failure in one does not block the rest.
+### Config File Schema (`apps.json`)
+
+```json
+{
+    "apps": [
+        { "name": "AppName" },
+        { "name": "AppName", "parameters": { "ParamName": "value" } }
+    ]
+}
+```
+
+- `name` — must be one of the valid app names listed below
+- `parameters` — optional object; keys must match the app's declared parameters
+
+### Valid App Names and Per-App Parameters
+
+| App Name | Available Parameters |
+|---|---|
+| `VCRedist` | `x64Only` (bool) |
+| `PowerShell7` | — |
+| `MicrosoftEdge` | `Architecture` (x64/x86) |
+| `GoogleChrome` | — |
+| `FirefoxESR` | — |
+| `AdobeReaderDC` | `Architecture` (x64/x86), `BaseVersion`, `UpdateVersion` |
+| `Microsoft365Apps` | `TargetVersion`, `TenantId` |
+| `OneDrive` | `TenantId` |
+| `MicrosoftTeams` | `OfflineMsix` (path) |
+| `WebRTCRedirector` | — |
+| `NotepadPlusPlus` | — |
+| `Bitwarden` | — |
+
+Apps always run in the dependency order shown in the Execution Order table below, regardless of their order in the config file.
+
+---
+
+## Orchestrator
+
+**`Update-GoldImage.ps1`** reads a JSON config file, fetches each app's update script from GitHub, and executes them in dependency order. Each application is wrapped in its own error boundary so a failure in one does not block the rest.
 
 ### Parameters
 
-| Parameter | Type | Description |
-|---|---|---|
-| `-SkipUpdate` | Switch | Pass `-SkipUpdate` to all child scripts (customizations only, no downloads) |
-| `-Only` | String[] | Run only the specified apps (tab-completable) |
-| `-Exclude` | String[] | Run all apps except the specified ones (tab-completable) |
-| `-LogPath` | String | Log directory (default: `%SystemRoot%\Logs\Software`) |
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `-ConfigPath` | String | `C:\Scripts\apps.json` | Path to the JSON config file |
+| `-SkipUpdate` | Switch | | Pass `-SkipUpdate` to all child scripts (customizations only, no downloads) |
+| `-LogPath` | String | `%SystemRoot%\Logs\Software` | Log directory |
+| `-GitHubRepo` | String | `falconnoclaf/avd-installers` | GitHub repo (for testing with forks) |
+| `-GitHubBranch` | String | `main` | GitHub branch (for testing with feature branches) |
+| `-GitHubToken` | String | | GitHub PAT for private repos (needs Contents read permission) |
+
+### Bootstrap Script
+
+**`Invoke-GoldImage.ps1`** downloads the orchestrator from GitHub and executes it, passing all parameters through. This means updates to the orchestrator automatically propagate to all gold images.
 
 ### Execution Order
 
@@ -100,12 +171,6 @@ The orchestrator produces a summary report at the end of each run:
 Total: 12 apps | 12 succeeded | 0 failed | 0 skipped
 Total elapsed time: 00:14:22
 ```
-
-### Valid App Names
-
-Use these names with `-Only` and `-Exclude`:
-
-`VCRedist`, `PowerShell7`, `MicrosoftEdge`, `GoogleChrome`, `FirefoxESR`, `AdobeReaderDC`, `Microsoft365Apps`, `OneDrive`, `MicrosoftTeams`, `WebRTCRedirector`, `NotepadPlusPlus`, `Bitwarden`
 
 ---
 
