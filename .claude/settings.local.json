@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git mv:*)",
+      "Bash(pwsh -NoProfile -Command '$hasErrors = $false; Get-ChildItem -Path . -Filter \"*.ps1\" -Recurse | ForEach-Object { $e = $null; [System.Management.Automation.Language.Parser]::ParseFile\\($_.FullName, [ref]$null, [ref]$e\\); if \\($e\\) { $hasErrors = $true; $e | ForEach-Object { Write-Output \"ERROR: $\\($_.Extent.File\\):$\\($_.Extent.StartLineNumber\\) - $\\($_.Message\\)\" } } }; if \\(-not $hasErrors\\) { Write-Output \"All scripts pass syntax validation.\" }')",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
