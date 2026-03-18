@@ -226,10 +226,27 @@ try {
             Write-Log "-----------------------------------------------------------------"
             Write-Log "Processing VC++ Redistributable ($($pkg.Architecture))..."
 
-            $installerFile = Join-Path $DownloadPath $pkg.FileName
-            Start-FileDownload -Uri $pkg.Url -OutFile $installerFile
+            # Check if installed version already matches latest before downloading
+            $installedEntry = $installed | Where-Object { $_.Architecture -eq $pkg.Architecture } | Select-Object -First 1
+            if ($installedEntry) {
+                # Get the latest version number from the download URL's redirected file metadata
+                # by downloading to temp and checking ProductVersion before running the installer
+                $installerFile = Join-Path $DownloadPath $pkg.FileName
+                Start-FileDownload -Uri $pkg.Url -OutFile $installerFile
 
-            $exitCode = Install-VCRedist -InstallerPath $installerFile -Architecture $pkg.Architecture
+                $downloadedVersion = (Get-Item $installerFile).VersionInfo.ProductVersion
+                if ($downloadedVersion -and $installedEntry.DisplayVersion -and
+                    $downloadedVersion -eq $installedEntry.DisplayVersion) {
+                    Write-Log "Already at latest version: $downloadedVersion ($($pkg.Architecture)). Skipping install."
+                    continue
+                }
+                Write-Log "Installed: $($installedEntry.DisplayVersion), Downloaded: $downloadedVersion"
+                $exitCode = Install-VCRedist -InstallerPath $installerFile -Architecture $pkg.Architecture
+            } else {
+                $installerFile = Join-Path $DownloadPath $pkg.FileName
+                Start-FileDownload -Uri $pkg.Url -OutFile $installerFile
+                $exitCode = Install-VCRedist -InstallerPath $installerFile -Architecture $pkg.Architecture
+            }
         }
     } else {
         Write-Log "Skipping update (SkipUpdate specified)."
