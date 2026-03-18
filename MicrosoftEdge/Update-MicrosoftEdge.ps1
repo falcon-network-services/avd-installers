@@ -249,7 +249,7 @@ function Set-EdgeAVDCustomizations {
     foreach ($task in $tasks) {
         try {
             if ($task.State -ne "Disabled") {
-                Disable-ScheduledTask -TaskName $task.TaskName -ErrorAction Stop | Out-Null
+                $task | Disable-ScheduledTask -ErrorAction Stop | Out-Null
                 Write-Log "Disabled scheduled task: $($task.TaskName)"
             }
         } catch {

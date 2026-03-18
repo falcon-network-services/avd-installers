@@ -334,11 +334,11 @@ function Set-M365AVDCustomizations {
     )
     foreach ($task in $tasks) {
         try {
-            $existingTask = Get-ScheduledTask -TaskName $task -ErrorAction Stop
-            Disable-ScheduledTask -TaskName $task -ErrorAction Stop | Out-Null
-            Write-Log "Disabled scheduled task: $task"
-        } catch [Microsoft.PowerShell.Cmdletization.Cim.CimJobException] {
-            # Task does not exist -- not an error
+            $existingTask = Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+            if ($existingTask) {
+                $existingTask | Disable-ScheduledTask -ErrorAction Stop | Out-Null
+                Write-Log "Disabled scheduled task: $task"
+            }
         } catch {
             Write-Log "Failed to disable task '$task': $($_.Exception.Message)" -Level WARN
         }

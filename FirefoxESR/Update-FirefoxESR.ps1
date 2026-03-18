@@ -24,11 +24,11 @@
     Directory for log files. Defaults to $env:SystemRoot\Logs\Software.
 
 .EXAMPLE
-    .\Install-FirefoxESR.ps1
+    .\Update-FirefoxESR.ps1
     Updates Firefox ESR to the latest version and disables auto-update.
 
 .EXAMPLE
-    .\Install-FirefoxESR.ps1 -SkipUpdate
+    .\Update-FirefoxESR.ps1 -SkipUpdate
     Only disables auto-update and applies customizations.
 
 .NOTES
@@ -275,7 +275,7 @@ function Set-FirefoxAVDCustomizations {
         foreach ($task in $tasks) {
             try {
                 if ($task.State -ne "Disabled") {
-                    Disable-ScheduledTask -TaskName $task.TaskName -ErrorAction Stop | Out-Null
+                    $task | Disable-ScheduledTask -ErrorAction Stop | Out-Null
                     Write-Log "  Disabled scheduled task: $($task.TaskName)"
                 } else {
                     Write-Log "  Scheduled task already disabled: $($task.TaskName)"

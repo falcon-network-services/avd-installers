@@ -24,11 +24,11 @@
     Directory for log files. Defaults to $env:SystemRoot\Logs\Software.
 
 .EXAMPLE
-    .\Install-GoogleChrome.ps1
+    .\Update-GoogleChrome.ps1
     Updates Chrome to the latest version and disables auto-update.
 
 .EXAMPLE
-    .\Install-GoogleChrome.ps1 -SkipUpdate
+    .\Update-GoogleChrome.ps1 -SkipUpdate
     Only disables auto-update and applies customizations.
 
 .NOTES
@@ -302,7 +302,7 @@ function Set-ChromeAVDCustomizations {
         foreach ($task in $tasks) {
             try {
                 if ($task.State -ne "Disabled") {
-                    Disable-ScheduledTask -TaskName $task.TaskName -ErrorAction Stop | Out-Null
+                    $task | Disable-ScheduledTask -ErrorAction Stop | Out-Null
                     Write-Log "  Disabled scheduled task: $($task.TaskName)"
                 } else {
                     Write-Log "  Scheduled task already disabled: $($task.TaskName)"

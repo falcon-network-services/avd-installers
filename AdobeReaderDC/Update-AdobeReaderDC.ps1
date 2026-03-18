@@ -36,11 +36,11 @@
     Directory for installation log files. Defaults to $env:SystemRoot\Logs\Software.
 
 .EXAMPLE
-    .\Install-AdobeReaderDC.ps1
+    .\Update-AdobeReaderDC.ps1
     Detects current state and installs/updates to the latest version (64-bit).
 
 .EXAMPLE
-    .\Install-AdobeReaderDC.ps1 -Architecture x86 -KeepInstallers
+    .\Update-AdobeReaderDC.ps1 -Architecture x86 -KeepInstallers
     Installs/updates 32-bit Reader and retains downloaded files.
 
 .NOTES
@@ -398,7 +398,7 @@ function Set-ReaderAVDCustomizations {
         try {
             $existingTask = Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
             if ($existingTask) {
-                Disable-ScheduledTask -TaskName $task -ErrorAction Stop | Out-Null
+                $existingTask | Disable-ScheduledTask -ErrorAction Stop | Out-Null
                 Write-Log "Disabled scheduled task: $task"
             }
         } catch {

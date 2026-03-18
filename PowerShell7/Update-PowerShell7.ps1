@@ -23,11 +23,11 @@
     Directory for log files. Defaults to $env:SystemRoot\Logs\Software.
 
 .EXAMPLE
-    .\Install-PowerShell7.ps1
+    .\Update-PowerShell7.ps1
     Updates PowerShell 7 to the latest version and disables update notifications.
 
 .EXAMPLE
-    .\Install-PowerShell7.ps1 -SkipUpdate
+    .\Update-PowerShell7.ps1 -SkipUpdate
     Only disables update notifications and applies customizations.
 
 .NOTES
@@ -263,7 +263,7 @@ function Set-PwshAVDCustomizations {
     foreach ($task in $tasks) {
         try {
             if ($task.State -ne "Disabled") {
-                Disable-ScheduledTask -TaskName $task.TaskName -ErrorAction Stop | Out-Null
+                $task | Disable-ScheduledTask -ErrorAction Stop | Out-Null
                 Write-Log "  Disabled scheduled task: $($task.TaskName)"
             } else {
                 Write-Log "  Scheduled task already disabled: $($task.TaskName)"
