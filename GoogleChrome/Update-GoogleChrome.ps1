@@ -187,13 +187,31 @@ function Install-ChromeMSI {
 
     Write-Log "Installing Chrome from: $MsiPath"
 
-    # Close Chrome if running
-    $chromeProcs = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
-    if ($chromeProcs) {
-        Write-Log "Closing Google Chrome..."
-        $chromeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 3
+    # Close Chrome and related processes that can lock files and cause MSI 1603
+    $processNames = @("chrome", "GoogleUpdate", "GoogleCrashHandler", "GoogleCrashHandler64", "setup")
+    foreach ($proc in $processNames) {
+        $running = Get-Process -Name $proc -ErrorAction SilentlyContinue
+        if ($running) {
+            Write-Log "Closing $proc..."
+            $running | Stop-Process -Force -ErrorAction SilentlyContinue
+        }
     }
+
+    # Stop Google Update services before install
+    $services = @("gupdate", "gupdatem", "GoogleUpdaterService", "GoogleUpdaterInternalService")
+    foreach ($svc in $services) {
+        try {
+            $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
+            if ($service -and $service.Status -eq 'Running') {
+                Stop-Service -Name $svc -Force -ErrorAction Stop
+                Write-Log "Stopped service: $svc"
+            }
+        } catch {
+            Write-Log "Could not stop service '$svc': $($_.Exception.Message)" -Level WARN
+        }
+    }
+
+    Start-Sleep -Seconds 3
 
     $msiLog = Join-Path $LogPath "GoogleChrome-MSI-Install.log"
     $arguments = "/i `"$MsiPath`" /qn /norestart /L*v `"$msiLog`""

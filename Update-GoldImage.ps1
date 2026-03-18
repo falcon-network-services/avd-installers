@@ -363,6 +363,12 @@ try {
             # Execute the child script
             & $scriptPath @scriptArgs
 
+            # Child scripts use 'exit 1' on failure, which sets $LASTEXITCODE
+            # but does not throw a PowerShell exception. Check explicitly.
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                throw "$($app.DisplayName) exited with code $LASTEXITCODE"
+            }
+
             $status = "SUCCESS"
             $detail = "Completed successfully"
             Write-Log "------------------------------------------------------------"
