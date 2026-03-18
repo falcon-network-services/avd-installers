@@ -276,7 +276,7 @@ foreach ($appEntry in $config.apps) {
 }
 
 # Filter catalog to only config-listed apps (preserving dependency order)
-$AppsToRun = $AppDefinitions | Where-Object { $configLookup.ContainsKey($_.Name) }
+$AppsToRun = @($AppDefinitions | Where-Object { $configLookup.ContainsKey($_.Name) })
 
 # ── Banner ───────────────────────────────────────────────────────────────────
 $totalStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -400,8 +400,8 @@ finally {
 $totalStopwatch.Stop()
 $totalElapsed = $totalStopwatch.Elapsed.ToString("hh\:mm\:ss")
 
-$successCount = ($Results | Where-Object { $_.Status -eq "SUCCESS" }).Count
-$failedCount  = ($Results | Where-Object { $_.Status -eq "FAILED" }).Count
+$successCount = @($Results | Where-Object { $_.Status -eq "SUCCESS" }).Count
+$failedCount  = @($Results | Where-Object { $_.Status -eq "FAILED" }).Count
 
 Write-Log ""
 Write-Log "============================================================"
