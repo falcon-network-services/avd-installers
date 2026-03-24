@@ -43,7 +43,7 @@
     Directory for the orchestrator log file. Defaults to $env:SystemRoot\Logs\Software.
 
 .PARAMETER GitHubRepo
-    GitHub repository in Owner/Repo format. Defaults to falconnoclaf/avd-installers.
+    GitHub repository in Owner/Repo format. Defaults to falcon-network-services/avd-installers.
     Override for testing with forks.
 
 .PARAMETER GitHubBranch
@@ -79,7 +79,7 @@ param(
 
     [string]$LogPath = "$env:SystemRoot\Logs\Software",
 
-    [string]$GitHubRepo = "falconnoclaf/avd-installers",
+    [string]$GitHubRepo = "falcon-network-services/avd-installers",
 
     [string]$GitHubBranch = "main",
 

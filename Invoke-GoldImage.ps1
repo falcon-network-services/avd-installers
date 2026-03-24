@@ -7,10 +7,10 @@
     All parameters are passed through to the orchestrator.
 
     Public repo one-liner (paste into elevated PowerShell):
-    $f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falconnoclaf/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;Remove-Item $f -Force
+    $f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;Remove-Item $f -Force
 
     Private repo one-liner (replace <PAT> with your token):
-    $f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falconnoclaf/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;Remove-Item $f -Force
+    $f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;Remove-Item $f -Force
 
 .NOTES
     Author: Falcon Network Services LLC
@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$repo   = "falconnoclaf/avd-installers"
+$repo   = "falcon-network-services/avd-installers"
 $branch = "main"
 $url    = "https://raw.githubusercontent.com/$repo/$branch/Update-GoldImage.ps1"
 $tempScript = Join-Path $env:TEMP "Update-GoldImage.ps1"
