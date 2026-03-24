@@ -21,6 +21,7 @@
     10. WebRTC Redirector Service
     11. Notepad++
     12. Bitwarden
+    13. Pandoc
 
     Features:
     - Config-driven app selection (apps.json)
@@ -201,6 +202,13 @@ $AppDefinitions = @(
         Name               = "Bitwarden"
         DisplayName        = "Bitwarden"
         ScriptFile         = "Bitwarden/Update-Bitwarden.ps1"
+        SupportsSkipUpdate = $true
+        ValidParams        = @()
+    },
+    @{
+        Name               = "Pandoc"
+        DisplayName        = "Pandoc"
+        ScriptFile         = "Pandoc/Update-Pandoc.ps1"
         SupportsSkipUpdate = $true
         ValidParams        = @()
     }

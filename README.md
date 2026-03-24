@@ -22,7 +22,8 @@ Copy `apps.example.json` to `C:\Scripts\apps.json` on the gold image and trim it
         { "name": "MicrosoftTeams" },
         { "name": "WebRTCRedirector" },
         { "name": "NotepadPlusPlus" },
-        { "name": "Bitwarden" }
+        { "name": "Bitwarden" },
+        { "name": "Pandoc" }
     ]
 }
 ```
@@ -67,6 +68,8 @@ avd-installers/
 │   └── Update-MicrosoftTeams.ps1
 ├── NotepadPlusPlus/
 │   └── Update-NotepadPlusPlus.ps1
+├── Pandoc/
+│   └── Update-Pandoc.ps1
 ├── OneDrive/
 │   └── Update-OneDrive.ps1
 ├── PowerShell7/
@@ -109,6 +112,7 @@ avd-installers/
 | `WebRTCRedirector` | — |
 | `NotepadPlusPlus` | — |
 | `Bitwarden` | — |
+| `Pandoc` | — |
 
 Apps always run in the dependency order shown in the Execution Order table below, regardless of their order in the config file.
 
@@ -151,6 +155,7 @@ The orchestrator runs applications in this order, optimized for dependencies:
 | 10 | WebRTC Redirector Service | Teams media optimization |
 | 11 | Notepad++ | Developer tooling |
 | 12 | Bitwarden | Password manager |
+| 13 | Pandoc | Document converter |
 
 ### Output
 
@@ -356,6 +361,23 @@ Downloads the latest Notepad++ x64 installer from GitHub Releases and installs i
 - Modifies config XML to disable auto-update checks
 - Removes GUP.exe (built-in updater plugin)
 - Removes desktop shortcut
+
+---
+
+### Pandoc
+
+**Script:** `Pandoc\Update-Pandoc.ps1`
+
+Downloads the latest Pandoc x64 MSI installer from GitHub Releases and installs it silently.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `-SkipUpdate` | Switch | | Skip download/install, apply customizations only |
+| `-KeepInstallers` | Switch | | Retain downloaded files after install |
+
+**Version detection:** GitHub Releases API for `jgm/pandoc`. Detects installed version via `pandoc --version`.
+
+**Notes:** No auto-update lockdown needed. Pandoc is a command-line tool with no self-update mechanism. Removes desktop shortcut if present.
 
 ---
 

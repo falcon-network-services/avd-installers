@@ -9,11 +9,11 @@ PowerShell scripts for maintaining Azure Virtual Desktop (AVD) Gold Images. Each
 ```
 Update-GoldImage.ps1             # Config-driven orchestrator - fetches scripts from GitHub
 Invoke-GoldImage.ps1             # Bootstrap script - downloads and runs the orchestrator
-apps.example.json                # Template config showing all 12 apps with parameters
+apps.example.json                # Template config showing all 13 apps with parameters
 {AppName}/Update-{AppName}.ps1   # Individual updater scripts (standalone)
 ```
 
-**12 applications:** VCRedist, PowerShell7, MicrosoftEdge, GoogleChrome, FirefoxESR, AdobeReaderDC, Microsoft365Apps, OneDrive, MicrosoftTeams, WebRTCRedirector, NotepadPlusPlus, Bitwarden
+**13 applications:** VCRedist, PowerShell7, MicrosoftEdge, GoogleChrome, FirefoxESR, AdobeReaderDC, Microsoft365Apps, OneDrive, MicrosoftTeams, WebRTCRedirector, NotepadPlusPlus, Bitwarden, Pandoc
 
 ## Conventions
 
@@ -22,7 +22,7 @@ apps.example.json                # Template config showing all 12 apps with para
 - `#Requires -RunAsAdministrator` at top
 - `Set-StrictMode -Version Latest` and `$ErrorActionPreference = "Stop"`
 - `$ProgressPreference = "SilentlyContinue"` to speed up web requests
-- Every script has its own `Write-Log`, `Set-RegistryValue`, and `Start-FileDownload` functions (standalone design, no shared modules). Exception: `Set-RegistryValue` is only required in scripts that apply registry customizations — scripts with no registry changes (VCRedist, WebRTCRedirector, NotepadPlusPlus) are exempt.
+- Every script has its own `Write-Log`, `Set-RegistryValue`, and `Start-FileDownload` functions (standalone design, no shared modules). Exception: `Set-RegistryValue` is only required in scripts that apply registry customizations — scripts with no registry changes (VCRedist, WebRTCRedirector, NotepadPlusPlus, Pandoc) are exempt.
 - Logs go to `$env:SystemRoot\Logs\Software\`
 - Downloads use BITS with Invoke-WebRequest fallback (except for URLs with redirects, which use Invoke-WebRequest only)
 - File size validation after download
