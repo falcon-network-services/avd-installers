@@ -1,5 +1,25 @@
 # AVD Gold Image Application Installers
 
+## Falcon Conventions (Required Reading)
+
+Falcon Network Services maintains shared conventions in the sibling repo at `../fns1-conventions/`. Read these files at session start in addition to this CLAUDE.md.
+
+**Always applicable to this repo:**
+
+- `../fns1-conventions/documentation-conventions.md` - Em dashes prohibited, Falcon vs FNS1 naming, tone, code comment headers, compliance citation patterns
+- `../fns1-conventions/tech-stack.md` - Falcon's complete technology environment for orientation
+- `../fns1-conventions/active-standards-index.md` - Snapshot of active Falcon standards and runbooks
+
+**Read for cross-repo context (not directly applied here):**
+
+- `../fns1-conventions/document-id-naming.md` - Used when this repo's scripts are referenced from formal Falcon documents
+- `../fns1-conventions/ninjaone-conventions.md` - Applies to NinjaOne automations in `../ninjaone/`. The Gold Image scripts in this repo are NOT NinjaOne automations and follow this repo's own conventions documented below
+- `../fns1-conventions/azure-conventions.md` - Applies when Azure resources are deployed. This repo produces scripts; Azure deployment is handled elsewhere
+
+**Conflict resolution:**
+
+Where this repo's conventions (the Conventions section below) differ from `fns1-conventions`, the conventions in this CLAUDE.md take precedence for repo-specific patterns (PowerShell function structure, parameter sets, AVD customizations). The shared conventions take precedence for documentation style (no em dashes), document references (FNS1- IDs), and cross-cutting concerns.
+
 ## Project Overview
 
 PowerShell scripts for maintaining Azure Virtual Desktop (AVD) Gold Images. Each script downloads the latest version of an application, installs it silently, disables auto-update mechanisms, and applies AVD/VDI-optimized registry customizations.
@@ -22,7 +42,7 @@ apps.example.json                # Template config showing all 13 apps with para
 - `#Requires -RunAsAdministrator` at top
 - `Set-StrictMode -Version Latest` and `$ErrorActionPreference = "Stop"`
 - `$ProgressPreference = "SilentlyContinue"` to speed up web requests
-- Every script has its own `Write-Log`, `Set-RegistryValue`, and `Start-FileDownload` functions (standalone design, no shared modules). Exception: `Set-RegistryValue` is only required in scripts that apply registry customizations — scripts with no registry changes (VCRedist, WebRTCRedirector, NotepadPlusPlus, Pandoc) are exempt.
+- Every script has its own `Write-Log`, `Set-RegistryValue`, and `Start-FileDownload` functions (standalone design, no shared modules). Exception: `Set-RegistryValue` is only required in scripts that apply registry customizations - scripts with no registry changes (VCRedist, WebRTCRedirector, NotepadPlusPlus, Pandoc) are exempt.
 - Logs go to `$env:SystemRoot\Logs\Software\`
 - Downloads use BITS with Invoke-WebRequest fallback (except for URLs with redirects, which use Invoke-WebRequest only)
 - File size validation after download
