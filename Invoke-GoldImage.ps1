@@ -7,10 +7,10 @@
     All parameters are passed through to the orchestrator.
 
     Public repo one-liner (paste into elevated PowerShell):
-    $f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;Remove-Item $f -Force
+    $f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;[System.IO.File]::Delete($f)
 
     Private repo one-liner (replace <PAT> with your token):
-    $f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;Remove-Item $f -Force
+    $f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;[System.IO.File]::Delete($f)
 
 .NOTES
     Author: Falcon Network Services LLC
@@ -49,7 +49,10 @@ try {
     & $tempScript @args
 }
 finally {
-    if (Test-Path $tempScript) {
-        Remove-Item $tempScript -Force -ErrorAction SilentlyContinue
+    # [IO.File]::Delete handles 8.3 short paths in $env:TEMP (e.g. C:\Users\FNS~1.TEC\...)
+    # that Remove-Item cannot, and is a no-op if the file is already gone.
+    if (Test-Path -LiteralPath $tempScript) {
+        try { [System.IO.File]::Delete($tempScript) }
+        catch { Write-Warning "Could not remove temporary script '$tempScript': $($_.Exception.Message)" }
     }
 }

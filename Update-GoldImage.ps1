@@ -407,13 +407,14 @@ try {
 }
 finally {
     # ── Clean Up Temp Directory ──────────────────────────────────────────────
-    # -LiteralPath avoids wildcard globbing (the temp path may contain '~' or
-    # other metacharacters). Globbing failures throw a terminating
-    # PSArgumentException that -ErrorAction SilentlyContinue does not suppress,
-    # so cleanup must be wrapped in try/catch to stay best-effort.
+    # Use .NET Directory.Delete instead of Remove-Item: when $env:TEMP resolves to an
+    # 8.3 short path (e.g. C:\Users\FNS~1.TEC\...), Remove-Item throws a terminating
+    # PSArgumentException that -ErrorAction cannot suppress, regardless of -Path vs
+    # -LiteralPath. The .NET API bypasses the PowerShell provider and handles short
+    # paths correctly. Wrapped in try/catch to keep cleanup best-effort.
     if (Test-Path -LiteralPath $TempDir) {
         try {
-            Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction Stop
+            [System.IO.Directory]::Delete($TempDir, $true)
         }
         catch {
             Write-Log "Could not remove temp directory '$TempDir': $($_.Exception.Message)" -Level WARN

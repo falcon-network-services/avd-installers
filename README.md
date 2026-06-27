@@ -33,13 +33,13 @@ Copy `apps.example.json` to `C:\Scripts\apps.json` on the gold image and trim it
 **Private repository** (replace `<PAT>` with a GitHub Personal Access Token that has Contents read permission):
 
 ```powershell
-$f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;Remove-Item $f -Force
+$f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;[System.IO.File]::Delete($f)
 ```
 
 **Customizations only** (no downloads/installs):
 
 ```powershell
-$f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f -SkipUpdate;Remove-Item $f -Force
+$f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f -SkipUpdate;[System.IO.File]::Delete($f)
 ```
 
 > All scripts require **Run as Administrator**. Logs are written to `%SystemRoot%\Logs\Software\`.

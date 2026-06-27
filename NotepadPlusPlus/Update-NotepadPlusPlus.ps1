@@ -317,9 +317,18 @@ try {
     }
 
     # Cleanup
-    if (-not $KeepInstallers -and (Test-Path $DownloadPath)) {
-        Remove-Item -Path $DownloadPath -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Log "Cleaned up download directory."
+    if (-not $KeepInstallers -and (Test-Path -LiteralPath $DownloadPath)) {
+        # Use .NET Directory.Delete instead of Remove-Item: when $env:TEMP resolves to
+        # an 8.3 short path (e.g. C:\Users\FNS~1.TEC\...), Remove-Item throws a terminating
+        # PSArgumentException that -ErrorAction cannot suppress. The .NET API bypasses the
+        # PowerShell provider and handles short paths correctly.
+        try {
+            [System.IO.Directory]::Delete($DownloadPath, $true)
+            Write-Log "Cleaned up download directory."
+        }
+        catch {
+            Write-Log "Could not remove download directory '$DownloadPath': $($_.Exception.Message)" -Level WARN
+        }
     }
 
     Write-Log "================================================================="
