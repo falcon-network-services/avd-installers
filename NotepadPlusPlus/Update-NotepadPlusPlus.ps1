@@ -318,16 +318,29 @@ try {
 
     # Cleanup
     if (-not $KeepInstallers -and (Test-Path -LiteralPath $DownloadPath)) {
-        # Use .NET Directory.Delete instead of Remove-Item: when $env:TEMP resolves to
-        # an 8.3 short path (e.g. C:\Users\FNS~1.TEC\...), Remove-Item throws a terminating
+        # Use .NET Directory.Delete instead of Remove-Item: when $env:TEMP resolves to an
+        # 8.3 short path (e.g. C:\Users\FNS~1.TEC\...), Remove-Item throws a terminating
         # PSArgumentException that -ErrorAction cannot suppress. The .NET API bypasses the
-        # PowerShell provider and handles short paths correctly.
-        try {
-            [System.IO.Directory]::Delete($DownloadPath, $true)
-            Write-Log "Cleaned up download directory."
+        # PowerShell provider and handles short paths correctly. Retry briefly in case an
+        # installer process (e.g. msiexec) still holds a file lock right after install.
+        $cleaned = $false
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+                [System.IO.Directory]::Delete($DownloadPath, $true)
+                $cleaned = $true
+                break
+            }
+            catch {
+                if ($attempt -lt 3) {
+                    Start-Sleep -Seconds 2
+                }
+                else {
+                    Write-Log "Could not remove download directory '$DownloadPath': $($_.Exception.Message)" -Level WARN
+                }
+            }
         }
-        catch {
-            Write-Log "Could not remove download directory '$DownloadPath': $($_.Exception.Message)" -Level WARN
+        if ($cleaned) {
+            Write-Log "Cleaned up download directory."
         }
     }
 
