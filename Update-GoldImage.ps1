@@ -300,6 +300,8 @@ Write-Log "Log file: $LogFile"
 Write-Log "------------------------------------------------------------"
 
 # ── Create Temp Directory ────────────────────────────────────────────────────
+# Note: New-Item has no -LiteralPath parameter; -Path is the only option here and
+# creates the directory literally (no glob match required for creation).
 New-Item -Path $TempDir -ItemType Directory -Force | Out-Null
 
 # ── Results Tracking ─────────────────────────────────────────────────────────
@@ -405,8 +407,17 @@ try {
 }
 finally {
     # ── Clean Up Temp Directory ──────────────────────────────────────────────
-    if (Test-Path $TempDir) {
-        Remove-Item $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+    # -LiteralPath avoids wildcard globbing (the temp path may contain '~' or
+    # other metacharacters). Globbing failures throw a terminating
+    # PSArgumentException that -ErrorAction SilentlyContinue does not suppress,
+    # so cleanup must be wrapped in try/catch to stay best-effort.
+    if (Test-Path -LiteralPath $TempDir) {
+        try {
+            Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Log "Could not remove temp directory '$TempDir': $($_.Exception.Message)" -Level WARN
+        }
     }
 }
 
