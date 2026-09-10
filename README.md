@@ -21,6 +21,10 @@ Copy `apps.example.json` to `C:\Scripts\apps.json` on the gold image and trim it
         { "name": "OneDrive", "parameters": { "TenantId": "contoso.onmicrosoft.com" } },
         { "name": "MicrosoftTeams" },
         { "name": "WebRTCRedirector" },
+        { "name": "ClaudeDesktop" },
+        { "name": "Git" },
+        { "name": "NodeJS" },
+        { "name": "GitHubCLI" },
         { "name": "NotepadPlusPlus" },
         { "name": "Bitwarden" },
         { "name": "Pandoc" }
@@ -30,16 +34,22 @@ Copy `apps.example.json` to `C:\Scripts\apps.json` on the gold image and trim it
 
 ### 2. Run the bootstrap one-liner (elevated PowerShell)
 
-**Private repository** (replace `<PAT>` with a GitHub Personal Access Token that has Contents read permission):
+**Full update** (downloads and installs everything listed in the config):
 
 ```powershell
-$f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;[System.IO.File]::Delete($f)
+$f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f;[System.IO.File]::Delete($f)
 ```
 
 **Customizations only** (no downloads/installs):
 
 ```powershell
 $f="$env:TEMP\Invoke-GoldImage.ps1";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing;& $f -SkipUpdate;[System.IO.File]::Delete($f)
+```
+
+**Private forks:** this repository is public, so the one-liners above need no token. A private fork requires a GitHub Personal Access Token with Contents read permission (replace `<PAT>`):
+
+```powershell
+$f="$env:TEMP\Invoke-GoldImage.ps1";$t="<PAT>";[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/falcon-network-services/avd-installers/main/Invoke-GoldImage.ps1' -OutFile $f -UseBasicParsing -Headers @{Authorization="token $t"};& $f -GitHubToken $t;[System.IO.File]::Delete($f)
 ```
 
 > All scripts require **Run as Administrator**. Logs are written to `%SystemRoot%\Logs\Software\`.
@@ -56,8 +66,14 @@ avd-installers/
 │   └── Update-AdobeReaderDC.ps1
 ├── Bitwarden/
 │   └── Update-Bitwarden.ps1
+├── ClaudeDesktop/
+│   └── Update-ClaudeDesktop.ps1
 ├── FirefoxESR/
 │   └── Update-FirefoxESR.ps1
+├── Git/
+│   └── Update-Git.ps1
+├── GitHubCLI/
+│   └── Update-GitHubCLI.ps1
 ├── GoogleChrome/
 │   └── Update-GoogleChrome.ps1
 ├── Microsoft365Apps/
@@ -66,6 +82,8 @@ avd-installers/
 │   └── Update-MicrosoftEdge.ps1
 ├── MicrosoftTeams/
 │   └── Update-MicrosoftTeams.ps1
+├── NodeJS/
+│   └── Update-NodeJS.ps1
 ├── NotepadPlusPlus/
 │   └── Update-NotepadPlusPlus.ps1
 ├── Pandoc/
@@ -93,26 +111,30 @@ avd-installers/
 }
 ```
 
-- `name` — must be one of the valid app names listed below
-- `parameters` — optional object; keys must match the app's declared parameters
+- `name` - must be one of the valid app names listed below
+- `parameters` - optional object; keys must match the app's declared parameters
 
 ### Valid App Names and Per-App Parameters
 
 | App Name | Available Parameters |
 |---|---|
 | `VCRedist` | `x64Only` (bool) |
-| `PowerShell7` | — |
+| `PowerShell7` | none |
 | `MicrosoftEdge` | `Architecture` (x64/x86) |
-| `GoogleChrome` | — |
-| `FirefoxESR` | — |
+| `GoogleChrome` | none |
+| `FirefoxESR` | none |
 | `AdobeReaderDC` | `Architecture` (x64/x86), `BaseVersion`, `UpdateVersion` |
 | `Microsoft365Apps` | `TargetVersion`, `TenantId` |
 | `OneDrive` | `TenantId` |
 | `MicrosoftTeams` | `OfflineMsix` (path) |
-| `WebRTCRedirector` | — |
-| `NotepadPlusPlus` | — |
-| `Bitwarden` | — |
-| `Pandoc` | — |
+| `WebRTCRedirector` | none |
+| `ClaudeDesktop` | `Architecture` (x64/arm64) |
+| `Git` | none |
+| `NodeJS` | none |
+| `GitHubCLI` | none |
+| `NotepadPlusPlus` | none |
+| `Bitwarden` | none |
+| `Pandoc` | none |
 
 Apps always run in the dependency order shown in the Execution Order table below, regardless of their order in the config file.
 
@@ -153,9 +175,13 @@ The orchestrator runs applications in this order, optimized for dependencies:
 | 8 | OneDrive | File sync (pairs with M365) |
 | 9 | Microsoft Teams | Communication (depends on WebView2, VC++) |
 | 10 | WebRTC Redirector Service | Teams media optimization |
-| 11 | Notepad++ | Developer tooling |
-| 12 | Bitwarden | Password manager |
-| 13 | Pandoc | Document converter |
+| 11 | Claude Desktop | Developer tooling (MSIX provisioning, independent of the rest) |
+| 12 | Git for Windows | Prerequisite for tooling that acts on a working tree |
+| 13 | Node.js LTS | Runtime for Node-based tooling; assumes Git is present |
+| 14 | GitHub CLI | Repository operations against a Git working tree |
+| 15 | Notepad++ | Developer tooling |
+| 16 | Bitwarden | Password manager |
+| 17 | Pandoc | Document converter |
 
 ### Output
 
@@ -226,6 +252,33 @@ Downloads the latest Bitwarden desktop client from GitHub Releases and installs 
 
 ---
 
+### Claude Desktop
+
+**Script:** `ClaudeDesktop\Update-ClaudeDesktop.ps1`
+
+Downloads the current Claude Desktop MSIX package and provisions it machine-wide with `Add-AppxProvisionedPackage`, so every user who signs in to a session host built from the image receives the app without needing local administrator rights.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `-Architecture` | String | `x64` | MSIX architecture: `x64` or `arm64` |
+| `-SkipUpdate` | Switch | | Skip download and provisioning, report current state only |
+| `-KeepInstallers` | Switch | | Retain the downloaded MSIX after provisioning |
+
+**Version detection:** The download endpoint is a redirect to the current package and reports no version of its own. The script reads `Package/Identity/@Version` from `AppxManifest.xml` inside the downloaded MSIX and compares it against the provisioned package version, skipping provisioning when the two match.
+
+**Download URL:** `https://claude.ai/api/desktop/win32/{x64|arm64}/msix/latest/redirect` (a redirect, so `Invoke-WebRequest` only, no BITS)
+
+**Install method:** `Add-AppxProvisionedPackage -Online -SkipLicense -Regions "all"`. The MSIX is packaged per-user, so `Add-AppxPackage` would register it for the calling account only, which on a multi-session host means a single profile. Provisioning stages the package at the OS level and each user profile registers it at first sign-in.
+
+**Auto-update policy:** The in-app updater is deliberately left enabled, so hosts stay current between image builds. `HKLM:\SOFTWARE\Policies\Claude\disableAutoUpdates` is read and reported but never written. Setting it makes the image the version owner, and two owners registering the package produces duplicate entries under the Claude package family and a "the parameter is incorrect" failure.
+
+**Notes:**
+- Cowork is unavailable on Azure Virtual Desktop session hosts, which do not provide the nested virtualization it requires. The script does not enable the Virtual Machine Platform feature.
+- Centralized deployment requires an Anthropic Team or Enterprise plan. Each user signs in to Claude Desktop with their own account.
+- No desktop shortcut is created by MSIX provisioning, so none is removed.
+
+---
+
 ### Mozilla Firefox ESR
 
 **Script:** `FirefoxESR\Update-FirefoxESR.ps1`
@@ -247,6 +300,51 @@ Downloads and installs Mozilla Firefox ESR (Extended Support Release) via the of
 - `DisablePocket`, `DisableFirefoxAccounts`, `DisableFeedbackCommands`
 - Blank `OverrideFirstRunPage` and `OverridePostUpdatePage`
 - Stops and disables the Mozilla Maintenance Service
+
+---
+
+### Git for Windows
+
+**Script:** `Git\Update-Git.ps1`
+
+Resolves the latest Git for Windows release from the GitHub Releases API and installs the 64-bit Inno Setup package silently, machine-wide, with a fixed component set. Git is on the image because repository work in Claude Code and any GitHub CLI operation that acts on a working tree depend on it. User identity and credentials are per-user and are not configured here.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `-SkipUpdate` | Switch | | Skip download/install, apply customizations only |
+| `-KeepInstallers` | Switch | | Retain downloaded files after install |
+
+**Version detection:** GitHub Releases API for `git-for-windows/git`, matching the `Git-<version>-64-bit.exe` asset. The installed version is parsed from `git.exe --version` rather than file version metadata, and normalized (`2.55.0.windows.5` becomes `2.55.0.5`) so it compares directly against the asset name.
+
+**Install arguments:** `/VERYSILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES /COMPONENTS="gitlfs,assoc,assoc_sh,windowsterminal"`. Any non-zero exit code fails the run.
+
+**Auto-update lockdown:**
+- The `autoupdate` component is omitted from `/COMPONENTS`, so the auto-updater is never installed. Anything not listed is not installed, making the component list the full set.
+- Disables any `Git for Windows Updater` scheduled task left behind by an earlier install
+- Removes the Git Bash and Git GUI desktop shortcuts
+
+---
+
+### GitHub CLI
+
+**Script:** `GitHubCLI\Update-GitHubCLI.ps1`
+
+Resolves the latest GitHub CLI release from the GitHub Releases API and installs the x64 MSI machine-wide.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `-SkipUpdate` | Switch | | Skip download/install, apply customizations only |
+| `-KeepInstallers` | Switch | | Retain downloaded files after install |
+
+**Version detection:** GitHub Releases API for `cli/cli`, `*windows_amd64.msi` asset. The installed version comes from the `gh.exe` ProductVersion string.
+
+**Install arguments:** `msiexec /i <msi> /qn /norestart`. Exit code 3010 is accepted as success with a reboot pending, 1618 (another install in progress) is logged as a warning, and any other non-zero code fails the run.
+
+**Auto-update lockdown:**
+- Sets `GH_NO_UPDATE_NOTIFIER=1` system environment variable, suppressing the "a new release of gh is available" notice that users cannot act on against a machine-wide install
+- Broadcasts `WM_SETTINGCHANGE` to propagate the environment variable immediately
+
+**Notes:** Each user authenticates `gh` with their own account. No credentials are baked into the image.
 
 ---
 
@@ -341,6 +439,30 @@ Downloads the Teams bootstrapper and provisions the latest Teams MSIX package fo
 - Removes desktop shortcut
 
 > This script will also install Teams on a new Gold Image where Teams is not yet present.
+
+---
+
+### Node.js LTS
+
+**Script:** `NodeJS\Update-NodeJS.ps1`
+
+Resolves the current Node.js LTS release from the official release index and installs the x64 MSI machine-wide. The MSI installs to Program Files and adds Node to the machine PATH, so the runtime is shared by every session rather than installed into each user's profile container.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `-SkipUpdate` | Switch | | Skip download/install, apply customizations only |
+| `-KeepInstallers` | Switch | | Retain downloaded files after install |
+
+**Version detection:** `https://nodejs.org/dist/index.json`, taking the first entry with a non-false `lts` field (the index is ordered newest first). The installed version comes from the `node.exe` ProductVersion.
+
+**Download URL:** `https://nodejs.org/dist/v{version}/node-v{version}-x64.msi` (served directly, so BITS with an `Invoke-WebRequest` fallback)
+
+**Install arguments:** `msiexec /i <msi> /qn /norestart ALLUSERS=1`. Exit code 3010 is accepted as success with a reboot pending, 1618 (another install in progress) is logged as a warning, and any other non-zero code fails the run.
+
+**Auto-update lockdown:**
+- Sets `NO_UPDATE_NOTIFIER=1` system environment variable, suppressing the npm update notifier that would prompt users to update a runtime they cannot change
+- Broadcasts `WM_SETTINGCHANGE` to propagate the environment variable immediately
+- Re-reads the variable at Machine scope at the end of the run and warns if it did not stick
 
 ---
 
