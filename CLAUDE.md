@@ -29,11 +29,11 @@ PowerShell scripts for maintaining Azure Virtual Desktop (AVD) Gold Images. Each
 ```
 Update-GoldImage.ps1             # Config-driven orchestrator - fetches scripts from GitHub
 Invoke-GoldImage.ps1             # Bootstrap script - downloads and runs the orchestrator
-apps.example.json                # Template config showing all 13 apps with parameters
+apps.example.json                # Template config showing all 17 apps with parameters
 {AppName}/Update-{AppName}.ps1   # Individual updater scripts (standalone)
 ```
 
-**13 applications:** VCRedist, PowerShell7, MicrosoftEdge, GoogleChrome, FirefoxESR, AdobeReaderDC, Microsoft365Apps, OneDrive, MicrosoftTeams, WebRTCRedirector, NotepadPlusPlus, Bitwarden, Pandoc
+**17 applications:** VCRedist, PowerShell7, MicrosoftEdge, GoogleChrome, FirefoxESR, AdobeReaderDC, Microsoft365Apps, OneDrive, MicrosoftTeams, WebRTCRedirector, ClaudeDesktop, Git, NodeJS, GitHubCLI, NotepadPlusPlus, Bitwarden, Pandoc
 
 ## Conventions
 
@@ -67,6 +67,12 @@ Each script disables auto-update mechanisms using a belt-and-suspenders approach
 2. Stop and disable update services
 3. Disable update scheduled tasks
 4. Remove updater executables where applicable
+
+### MSIX-Packaged Applications
+
+MSIX apps (MicrosoftTeams, ClaudeDesktop) are provisioned machine-wide with `Add-AppxProvisionedPackage`, not installed per-user. The packages are authored per-user, so `Add-AppxPackage` would register the app for the calling account only, which on a multi-session host means a single profile. Provisioning stages the package at the OS level and each user profile registers it at first sign-in.
+
+Version detection for these apps compares `Get-AppxProvisionedPackage` output against the package version. Where the publisher exposes no version API, read `Package/Identity/@Version` from `AppxManifest.xml` inside the downloaded package (open the MSIX as a zip with `System.IO.Compression.ZipFile`) rather than downloading and provisioning unconditionally.
 
 ### Orchestrator (`Update-GoldImage.ps1`)
 
@@ -111,6 +117,7 @@ Note: These scripts target Windows and cannot be executed on Linux. Syntax valid
 
 - All scripts are designed to run under Windows PowerShell 5.1 (not just PowerShell 7)
 - Scripts must be idempotent - safe to run multiple times
-- Version detection should gracefully handle API failures (fall back to download anyway or customizations only)
+- Version detection degrades by state, not uniformly. Where the version API fails but the app is already installed, log a WARN and continue with customizations only. Where the app is absent, throw. A run that installs nothing must fail: a SUCCESS line in the summary for an app that is not on the image is worse than a failed run, because nothing downstream will catch it
+- A non-zero installer exit code is a failure, not a warning, and so is an unchanged version after an install that reported success. The documented exceptions are 1618 (another install in progress) and 3010 (reboot required), which are non-fatal
 - Never leave auto-update mechanisms enabled - this is critical for Gold Image integrity
 - Adobe Reader version detection scrapes HTML (most fragile); all others use structured APIs
