@@ -14,6 +14,14 @@
     No auto-update mechanisms to disable - the WebRTC Redirector does not
     self-update. Updates must be applied manually or via deployment tools.
 
+    Microsoft publishes this MSI behind a permanent redirect with no version API, so
+    the ProductVersion is read from the downloaded package and compared against the
+    installed version. Where that comparison is available and equal, no install is
+    attempted: reinstalling the same package is what produces exit code 1603 on this
+    MSI, and 1603 is a fatal installer error rather than an "already installed"
+    signal. Where the version cannot be read and the component is already installed,
+    the install is skipped rather than attempted blindly.
+
 .PARAMETER SkipUpdate
     If specified, skips the download/install (detection only).
 
@@ -63,6 +71,8 @@ $UninstallPaths = @(
     "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
 )
 
+$ServiceNames = @("RDWebRTCSvc", "MsRdcWebRTCSvc")
+
 # -- Functions -----------------------------------------------------------------
 
 function Write-Log {
@@ -98,7 +108,7 @@ function Get-InstalledWebRTCVersion {
 
                     return [PSCustomObject]@{
                         DisplayName    = $name
-                        DisplayVersion = $version
+                        DisplayVersion = if ($version) { "$version".Trim() } else { $null }
                         UninstallKey   = $key.PSPath
                     }
                 }
@@ -140,20 +150,62 @@ function Start-FileDownload {
 }
 
 function Get-MsiProductVersion {
+    <#
+    .SYNOPSIS
+        Reads ProductVersion from an MSI's Property table.
+    .DESCRIPTION
+        The WindowsInstaller COM API is invoked through InvokeMember because the
+        interfaces are not exposed to PowerShell directly. Each InvokeMember call
+        needs its arguments as an array, and every COM object created along the way
+        is released in the finally block: a leaked database handle keeps a lock on
+        the MSI file and makes the later cleanup of the download directory fail.
+    #>
     param([string]$MsiPath)
+
+    $installer = $null
+    $database = $null
+    $view = $null
+    $record = $null
+
     try {
-        $windowsInstaller = New-Object -ComObject WindowsInstaller.Installer
-        $database = $windowsInstaller.GetType().InvokeMember("OpenDatabase", "InvokeMethod", $null, $windowsInstaller, @($MsiPath, 0))
-        $view = $database.GetType().InvokeMember("OpenView", "InvokeMethod", $null, $database, @("SELECT Value FROM Property WHERE Property='ProductVersion'"))
-        $view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null)
+        $installer = New-Object -ComObject WindowsInstaller.Installer
+
+        # 0 = read-only open mode
+        $database = $installer.GetType().InvokeMember(
+            "OpenDatabase", "InvokeMethod", $null, $installer, @($MsiPath, 0))
+
+        $query = "SELECT Value FROM Property WHERE Property = 'ProductVersion'"
+        $view = $database.GetType().InvokeMember(
+            "OpenView", "InvokeMethod", $null, $database, @($query))
+
+        $view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null) | Out-Null
+
         $record = $view.GetType().InvokeMember("Fetch", "InvokeMethod", $null, $view, $null)
-        $version = $record.GetType().InvokeMember("StringData", "GetProperty", $null, $record, 1)
-        $view.GetType().InvokeMember("Close", "InvokeMethod", $null, $view, $null)
-        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($windowsInstaller) | Out-Null
-        return $version
+        if (-not $record) {
+            Write-Log "The MSI Property table returned no ProductVersion row." -Level WARN
+            return $null
+        }
+
+        $value = $record.GetType().InvokeMember(
+            "StringData", "GetProperty", $null, $record, @(1))
+
+        if ([string]::IsNullOrWhiteSpace([string]$value)) {
+            Write-Log "The MSI ProductVersion value is empty." -Level WARN
+            return $null
+        }
+
+        return ([string]$value).Trim()
     } catch {
-        Write-Log "Could not read MSI version: $($_.Exception.Message)" -Level WARN
+        Write-Log "Could not read the MSI ProductVersion: $($_.Exception.Message)" -Level WARN
         return $null
+    } finally {
+        foreach ($obj in @($record, $view, $database, $installer)) {
+            if ($obj) {
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($obj) | Out-Null } catch {}
+            }
+        }
+        [System.GC]::Collect()
+        [System.GC]::WaitForPendingFinalizers()
     }
 }
 
@@ -168,12 +220,28 @@ function Install-WebRTCRedirector {
     $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
     Write-Log "MSI installer exit code: $($process.ExitCode)"
 
-    if ($process.ExitCode -eq 1603) {
-        Write-Log "Exit code 1603 - same version may already be installed, or install requires reboot." -Level WARN
-    } elseif ($process.ExitCode -ne 0 -and $process.ExitCode -ne 1618 -and $process.ExitCode -ne 3010) {
-        throw "$AppName installation failed with exit code $($process.ExitCode)"
+    # 3010 is success with a reboot required. 1618 is another install in progress and
+    # is non-fatal, though nothing was installed. Everything else, 1603 included, is a
+    # failure: 1603 means the installer aborted, and the verbose MSI log says why.
+    if ($process.ExitCode -eq 1618) {
+        Write-Log "Another installation is in progress (1618). The WebRTC Redirector was not installed on this run." -Level WARN
+    } elseif ($process.ExitCode -notin @(0, 3010)) {
+        throw "$AppName installation failed with exit code $($process.ExitCode). See the verbose MSI log at $msiLog"
     }
+
     return $process.ExitCode
+}
+
+function Test-WebRTCService {
+    <#
+    .SYNOPSIS
+        Returns the WebRTC Redirector service under either of its known names.
+    #>
+    foreach ($name in $ServiceNames) {
+        $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+        if ($svc) { return $svc }
+    }
+    return $null
 }
 
 # -- Main Execution ------------------------------------------------------------
@@ -205,38 +273,35 @@ try {
         Start-FileDownload -Uri $DownloadUrl -OutFile $msiFile
 
         # Read version from the downloaded MSI and compare before installing
-        $msiVersion = $null
-        try {
-            $msiVersionRaw = Get-MsiProductVersion -MsiPath $msiFile
-            if ($msiVersionRaw -and $msiVersionRaw -is [string]) {
-                $msiVersion = $msiVersionRaw.Trim()
-                Write-Log "Downloaded MSI version: $msiVersion"
-            } else {
-                Write-Log "Could not determine MSI version from file." -Level WARN
-            }
-        } catch {
-            Write-Log "Error reading MSI version: $($_.Exception.Message)" -Level WARN
+        $msiVersion = Get-MsiProductVersion -MsiPath $msiFile
+        if ($msiVersion) {
+            Write-Log "Downloaded MSI version: $msiVersion"
         }
 
-        $installedVer = $null
-        if ($installed -and $installed.DisplayVersion) {
-            $installedVer = "$($installed.DisplayVersion)".Trim()
-        }
+        $installedVer = if ($installed) { $installed.DisplayVersion } else { $null }
 
         if ($installedVer -and $msiVersion -and $installedVer -eq $msiVersion) {
             Write-Log "Already at latest version: $installedVer. Skipping install."
+        } elseif (-not $msiVersion -and $installedVer) {
+            # Without a version to compare, reinstalling the same package is what
+            # produces 1603 on this MSI. The installed component is left alone and the
+            # run is flagged rather than gambling on a reinstall.
+            Write-Log "Could not determine the MSI version, and version $installedVer is already installed. Skipping install; this run did not verify that the installed version is current." -Level WARN
         } else {
             $preVersion = if ($installed) { $installed.DisplayVersion } else { "none" }
             $exitCode = Install-WebRTCRedirector -MsiPath $msiFile
 
-            # Check post-install version
             $postInstall = Get-InstalledWebRTCVersion
-            if ($postInstall) {
-                if ($postInstall.DisplayVersion -ne $preVersion) {
-                    Write-Log "Updated: $preVersion -> $($postInstall.DisplayVersion)"
-                } else {
-                    Write-Log "Version unchanged after install: $($postInstall.DisplayVersion)"
-                }
+            if (-not $postInstall) {
+                throw "$AppName is not detected after an install that reported success. See the verbose MSI log in $LogPath"
+            }
+            if ($postInstall.DisplayVersion -ne $preVersion) {
+                Write-Log "Updated: $preVersion -> $($postInstall.DisplayVersion)"
+            } elseif ($exitCode -eq 1618) {
+                # The installer never ran, so an unchanged version is expected here.
+                Write-Log "Version unchanged: $($postInstall.DisplayVersion). No install was attempted (1618)." -Level WARN
+            } else {
+                throw "The installer reported success but the installed version is unchanged at $($postInstall.DisplayVersion). Expected $msiVersion."
             }
         }
     } else {
@@ -246,26 +311,27 @@ try {
     # Final verification
     Write-Log "-----------------------------------------------------------------"
     $finalVer = Get-InstalledWebRTCVersion
-    if ($finalVer) {
-        Write-Log "Final: $($finalVer.DisplayName) - Version: $($finalVer.DisplayVersion)"
+    if (-not $finalVer) {
+        throw "$AppName is not installed at completion."
     }
+    Write-Log "Final: $($finalVer.DisplayName) - Version: $($finalVer.DisplayVersion)"
 
-    # Verify the service exists and is running
-    try {
-        $svc = Get-Service -Name "RDWebRTCSvc" -ErrorAction SilentlyContinue
-        if ($svc) {
-            Write-Log "Service 'RDWebRTCSvc' status: $($svc.Status), StartType: $($svc.StartType)"
-        } else {
-            # Try alternate service name
-            $svc = Get-Service -Name "MsRdcWebRTCSvc" -ErrorAction SilentlyContinue
-            if ($svc) {
-                Write-Log "Service 'MsRdcWebRTCSvc' status: $($svc.Status), StartType: $($svc.StartType)"
-            } else {
-                Write-Log "WebRTC Redirector service not found." -Level WARN
-            }
+    # Verify the service exists and is running. The redirector is a service component,
+    # so an installed package with a dead service is not a working install.
+    $svc = Test-WebRTCService
+    if (-not $svc) {
+        throw "The WebRTC Redirector service was not found under any of: $($ServiceNames -join ', ')"
+    }
+    Write-Log "Service '$($svc.Name)' status: $($svc.Status), StartType: $($svc.StartType)"
+    if ($svc.Status -ne "Running") {
+        Write-Log "Service '$($svc.Name)' is $($svc.Status). Starting it..." -Level WARN
+        try {
+            Start-Service -Name $svc.Name -ErrorAction Stop
+            $svc = Test-WebRTCService
+            Write-Log "Service '$($svc.Name)' status: $($svc.Status)"
+        } catch {
+            throw "Could not start the WebRTC Redirector service '$($svc.Name)': $($_.Exception.Message)"
         }
-    } catch {
-        Write-Log "Could not query WebRTC service status: $($_.Exception.Message)" -Level WARN
     }
 
     # Cleanup
