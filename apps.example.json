@@ -37,6 +37,19 @@
             "name": "WebRTCRedirector"
         },
         {
+            "name": "ClaudeDesktop",
+            "_comment": "Optional params: Architecture (x64|arm64). Provisioned machine-wide as an MSIX; the in-app updater owns versioning"
+        },
+        {
+            "name": "Git"
+        },
+        {
+            "name": "NodeJS"
+        },
+        {
+            "name": "GitHubCLI"
+        },
+        {
             "name": "NotepadPlusPlus"
         },
         {

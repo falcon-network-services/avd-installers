@@ -19,9 +19,13 @@
      8. OneDrive
      9. Microsoft Teams
     10. WebRTC Redirector Service
-    11. Notepad++
-    12. Bitwarden
-    13. Pandoc
+    11. Claude Desktop
+    12. Git for Windows
+    13. Node.js LTS
+    14. GitHub CLI
+    15. Notepad++
+    16. Bitwarden
+    17. Pandoc
 
     Features:
     - Config-driven app selection (apps.json)
@@ -188,6 +192,34 @@ $AppDefinitions = @(
         Name               = "WebRTCRedirector"
         DisplayName        = "WebRTC Redirector Service"
         ScriptFile         = "WebRTCRedirector/Update-WebRTCRedirector.ps1"
+        SupportsSkipUpdate = $true
+        ValidParams        = @()
+    },
+    @{
+        Name               = "ClaudeDesktop"
+        DisplayName        = "Claude Desktop"
+        ScriptFile         = "ClaudeDesktop/Update-ClaudeDesktop.ps1"
+        SupportsSkipUpdate = $true
+        ValidParams        = @("Architecture")
+    },
+    @{
+        Name               = "Git"
+        DisplayName        = "Git for Windows"
+        ScriptFile         = "Git/Update-Git.ps1"
+        SupportsSkipUpdate = $true
+        ValidParams        = @()
+    },
+    @{
+        Name               = "NodeJS"
+        DisplayName        = "Node.js LTS"
+        ScriptFile         = "NodeJS/Update-NodeJS.ps1"
+        SupportsSkipUpdate = $true
+        ValidParams        = @()
+    },
+    @{
+        Name               = "GitHubCLI"
+        DisplayName        = "GitHub CLI"
+        ScriptFile         = "GitHubCLI/Update-GitHubCLI.ps1"
         SupportsSkipUpdate = $true
         ValidParams        = @()
     },
