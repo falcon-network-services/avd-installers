@@ -275,14 +275,13 @@ try {
             Install-Git -InstallerPath $installerFile | Out-Null
 
             $postInstall = Get-InstalledGitVersion
-            if ($postInstall) {
-                if ($postInstall.Version -ne $preVersion) {
-                    Write-Log "Updated: $preVersion -> $($postInstall.Version)"
-                } else {
-                    Write-Log "Version unchanged after install: $($postInstall.Version)" -Level WARN
-                }
-            } else {
+            if (-not $postInstall) {
                 throw "Git was not detected after a successful install."
+            }
+            if ($postInstall.Version -ne $preVersion) {
+                Write-Log "Updated: $preVersion -> $($postInstall.Version)"
+            } else {
+                throw "The installer reported success but the version is unchanged at $($postInstall.Version). Expected $($release.Version)."
             }
         }
     } else {

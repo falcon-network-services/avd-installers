@@ -256,17 +256,19 @@ try {
             Start-FileDownload -Uri $release.DownloadUrl -OutFile $installerFile
 
             $preVersion = if ($installed) { $installed.Version } else { "none" }
-            Install-NodeJS -InstallerPath $installerFile | Out-Null
+            $installExitCode = Install-NodeJS -InstallerPath $installerFile
 
             $postInstall = Get-InstalledNodeVersion
-            if ($postInstall) {
-                if ($postInstall.Version -ne $preVersion) {
-                    Write-Log "Updated: $preVersion -> $($postInstall.Version)"
-                } else {
-                    Write-Log "Version unchanged after install: $($postInstall.Version)" -Level WARN
-                }
-            } else {
+            if (-not $postInstall) {
                 throw "Node.js was not detected after a successful install."
+            }
+            if ($postInstall.Version -ne $preVersion) {
+                Write-Log "Updated: $preVersion -> $($postInstall.Version)"
+            } elseif ($installExitCode -eq 1618) {
+                # The installer never ran, so an unchanged version is expected here.
+                Write-Log "Version unchanged: $($postInstall.Version). No install was attempted (1618)." -Level WARN
+            } else {
+                throw "The installer reported success but the version is unchanged at $($postInstall.Version). Expected $($release.Version)."
             }
         }
     } else {

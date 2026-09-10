@@ -287,14 +287,13 @@ try {
             Install-ClaudeDesktop -MsixPath $msixFile
 
             $postProvision = Get-ProvisionedClaudePackage
-            if ($postProvision) {
-                if ($postProvision.Version -ne $preVersion) {
-                    Write-Log "Provisioned: $preVersion -> $($postProvision.Version)"
-                } else {
-                    Write-Log "Provisioned version unchanged: $($postProvision.Version)" -Level WARN
-                }
-            } else {
+            if (-not $postProvision) {
                 throw "Claude Desktop is not provisioned after a successful provisioning call."
+            }
+            if ($postProvision.Version -ne $preVersion) {
+                Write-Log "Provisioned: $preVersion -> $($postProvision.Version)"
+            } else {
+                throw "Provisioning reported success but the provisioned version is unchanged at $($postProvision.Version). Expected $packageVersion."
             }
         }
     } else {
