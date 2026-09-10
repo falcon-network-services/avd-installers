@@ -199,7 +199,7 @@ The orchestrator produces a summary report at the end of each run:
 3    Microsoft Edge                      SUCCESS   01:30
 ...
 ------------------------------------------------------------
-Total: 12 apps | 12 succeeded | 0 failed | 0 skipped
+Total: 17 apps | 17 succeeded | 0 failed
 Total elapsed time: 00:14:22
 ```
 
