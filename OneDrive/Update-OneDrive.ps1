@@ -13,6 +13,13 @@
     - Sets registry policy to prevent self-update
     - Configures OneDrive for AVD/VDI (silent sign-in, per-machine mode)
 
+    Version handling: the published download link serves the Production ring build,
+    which can be older than the OneDrive shipped in a current Windows multi-session
+    Marketplace image. Versions are therefore compared numerically and the install is
+    skipped when the installed build is the same or newer. An equality-only check
+    downloads and runs an installer that then declines to downgrade, which looks like
+    a successful update but changes nothing.
+
 .PARAMETER TenantId
     Azure AD / Entra ID tenant ID for OneDrive Known Folder Move.
     If omitted, KFM silent opt-in is skipped.
@@ -111,12 +118,38 @@ function Get-InstalledOneDriveVersion {
         if (Test-Path $p) {
             $ver = (Get-Item $p).VersionInfo.ProductVersion
             return [PSCustomObject]@{
-                Version = $ver
+                Version = if ($ver) { "$ver".Trim() } else { $null }
                 Path    = $p
             }
         }
     }
     return $null
+}
+
+function Compare-OneDriveVersion {
+    <#
+    .SYNOPSIS
+        Compares two OneDrive version strings numerically.
+    .DESCRIPTION
+        Returns -1 when Installed is older, 0 when equal, 1 when Installed is newer,
+        and $null when either value cannot be parsed. String comparison is not usable
+        here: OneDrive build segments are zero-padded, so "26.153.0809.0004" sorts
+        before "26.150.0804.0011" as text while being the newer build.
+    #>
+    param(
+        [string]$Installed,
+        [string]$Candidate
+    )
+
+    try {
+        $a = [version]$Installed
+        $b = [version]$Candidate
+    } catch {
+        Write-Log "Could not parse versions for comparison ('$Installed' and '$Candidate'): $($_.Exception.Message)" -Level WARN
+        return $null
+    }
+
+    return $a.CompareTo($b)
 }
 
 function Start-FileDownload {
@@ -142,6 +175,39 @@ function Start-FileDownload {
     Write-Log "Download complete: $([math]::Round($size, 1)) MB"
 }
 
+function Get-LatestOneDriveVersion {
+    <#
+    .SYNOPSIS
+        Resolves the download redirect to read the published version from its URL,
+        without downloading the installer.
+    #>
+    try {
+        $headResponse = Invoke-WebRequest -Uri $DownloadUrl -Method Head -UseBasicParsing -MaximumRedirection 5 -ErrorAction Stop
+
+        $resolvedUrl = $null
+        try { $resolvedUrl = $headResponse.BaseResponse.ResponseUri.AbsoluteUri } catch {}
+        if (-not $resolvedUrl) {
+            # PowerShell 7 exposes the final URI on the request message instead
+            try { $resolvedUrl = $headResponse.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {}
+        }
+
+        if (-not $resolvedUrl) {
+            Write-Log "Could not read the resolved download URL from the response." -Level WARN
+            return $null
+        }
+
+        if ($resolvedUrl -match '/(\d+\.\d+\.\d+\.\d+)/') {
+            return $Matches[1]
+        }
+
+        Write-Log "No version found in the resolved download URL: $resolvedUrl" -Level WARN
+        return $null
+    } catch {
+        Write-Log "Could not resolve the latest version from the download URL: $($_.Exception.Message)" -Level WARN
+        return $null
+    }
+}
+
 function Install-OneDrive {
     param([string]$InstallerPath)
 
@@ -161,9 +227,10 @@ function Install-OneDrive {
     $process = Start-Process -FilePath $InstallerPath -ArgumentList $arguments -Wait -PassThru -NoNewWindow
     Write-Log "Installer exit code: $($process.ExitCode)"
 
-    # OneDrive installer can return 0 (success) or other codes
+    # A non-zero exit code is a failure. OneDriveSetup.exe returns 0 on a successful
+    # per-machine install, so anything else means the install did not complete.
     if ($process.ExitCode -ne 0) {
-        Write-Log "OneDrive installer returned exit code $($process.ExitCode) (may still be OK)." -Level WARN
+        throw "$AppName installation failed with exit code $($process.ExitCode)"
     }
 
     # The installer may spawn a background process - give it time to finish
@@ -245,30 +312,47 @@ try {
         Write-Log "OneDrive per-machine installation not detected." -Level WARN
     }
 
+    $installAttempted = $false
+
     # Perform update
     if (-not $SkipUpdate) {
         Write-Log "-----------------------------------------------------------------"
 
-        # Resolve the redirect URL to extract the latest version without downloading
-        $latestVersion = $null
-        try {
-            $headResponse = Invoke-WebRequest -Uri $DownloadUrl -Method Head -UseBasicParsing -MaximumRedirection 5 -ErrorAction Stop
-            $resolvedUrl = $headResponse.BaseResponse.ResponseUri.AbsoluteUri
-            if (-not $resolvedUrl) {
-                # PowerShell 7 uses RequestMessage.RequestUri instead
-                $resolvedUrl = $headResponse.BaseResponse.RequestMessage.RequestUri.AbsoluteUri
-            }
-            if ($resolvedUrl -match '/(\d+\.\d+\.\d+\.\d+)/') {
-                $latestVersion = $Matches[1]
-                Write-Log "Latest OneDrive version: $latestVersion"
-            }
-        } catch {
-            Write-Log "Could not resolve latest version from URL: $($_.Exception.Message)" -Level WARN
+        $latestVersion = Get-LatestOneDriveVersion
+        if ($latestVersion) {
+            Write-Log "Published OneDrive version: $latestVersion"
         }
 
-        # Skip download if already at latest version
-        if ($installed -and $latestVersion -and $installed.Version -eq $latestVersion) {
-            Write-Log "Already at latest version: $($installed.Version). Skipping download."
+        # Decide whether an install is needed. The published build can be older than
+        # the build shipped in the OS image, so compare numerically rather than for
+        # equality alone.
+        $needsInstall = $true
+        $skipReason = $null
+
+        if (-not $installed) {
+            $needsInstall = $true
+        } elseif (-not $latestVersion) {
+            $needsInstall = $false
+            $skipReason = "Could not determine the published version. Keeping the installed version $($installed.Version); this run did not verify that it is current."
+        } else {
+            $comparison = Compare-OneDriveVersion -Installed $installed.Version -Candidate $latestVersion
+            if ($null -eq $comparison) {
+                $needsInstall = $true
+            } elseif ($comparison -eq 0) {
+                $needsInstall = $false
+                $skipReason = "Already at the published version: $($installed.Version). Skipping download."
+            } elseif ($comparison -gt 0) {
+                $needsInstall = $false
+                $skipReason = "Installed version $($installed.Version) is newer than the published version $latestVersion. The download link serves the Production ring, which trails the build shipped in current Windows images. Skipping download."
+            }
+        }
+
+        if (-not $needsInstall) {
+            if ($skipReason -match 'did not verify') {
+                Write-Log $skipReason -Level WARN
+            } else {
+                Write-Log $skipReason
+            }
         } else {
             Write-Log "Downloading latest OneDrive installer..."
 
@@ -280,15 +364,17 @@ try {
             Start-FileDownload -Uri $DownloadUrl -OutFile $installerFile
 
             $preVersion = if ($installed) { $installed.Version } else { "none" }
-            $exitCode = Install-OneDrive -InstallerPath $installerFile
+            $installAttempted = $true
+            Install-OneDrive -InstallerPath $installerFile | Out-Null
 
             $postInstall = Get-InstalledOneDriveVersion
-            if ($postInstall) {
-                if ($postInstall.Version -ne $preVersion) {
-                    Write-Log "Updated: $preVersion -> $($postInstall.Version)"
-                } else {
-                    Write-Log "Already at latest version: $($postInstall.Version)"
-                }
+            if (-not $postInstall) {
+                throw "$AppName is not detected after an install that reported success."
+            }
+            if ($postInstall.Version -ne $preVersion) {
+                Write-Log "Updated: $preVersion -> $($postInstall.Version)"
+            } else {
+                throw "The installer reported success but the installed version is unchanged at $($postInstall.Version). Expected $latestVersion."
             }
         }
     } else {
@@ -304,6 +390,10 @@ try {
     $finalVer = Get-InstalledOneDriveVersion
     if ($finalVer) {
         Write-Log "Final version: $($finalVer.Version)"
+    } elseif ($installAttempted) {
+        throw "$AppName is not installed at completion."
+    } else {
+        Write-Log "No per-machine OneDrive installation detected at completion. Customizations were applied and will take effect once OneDrive is installed per-machine." -Level WARN
     }
 
     # Cleanup
