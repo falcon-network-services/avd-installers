@@ -105,10 +105,10 @@ Use PowerShell's built-in parser to validate scripts for syntax errors:
 
 ```bash
 # Lint a single script
-pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile("./VCRedist/Update-VCRedist.ps1", [ref]$null, [ref]$errors); if ($errors) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }'
+pwsh -NoProfile -Command '$e=$null; $null = [System.Management.Automation.Language.Parser]::ParseFile("./VCRedist/Update-VCRedist.ps1", [ref]$null, [ref]$e); if ($e) { $e | ForEach-Object { Write-Error $_.Message }; exit 1 }'
 
 # Lint all scripts
-pwsh -NoProfile -Command 'Get-ChildItem -Path . -Filter "*.ps1" -Recurse | ForEach-Object { $e=$null; [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$e); if ($e) { $e | ForEach-Object { Write-Output "ERROR: $($_.Extent.File):$($_.Extent.StartLineNumber) - $($_.Message)" } } }; if ($LASTEXITCODE) { exit 1 }'
+pwsh -NoProfile -Command '$bad=0; Get-ChildItem -Path . -Filter "*.ps1" -Recurse | ForEach-Object { $e=$null; $null = [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$e); if ($e) { $bad++; $e | ForEach-Object { Write-Output "ERROR: $($_.Extent.File):$($_.Extent.StartLineNumber) - $($_.Message)" } } }; if ($bad) { exit 1 }'
 ```
 
 Note: These scripts target Windows and cannot be executed on Linux. Syntax validation is the primary check available in non-Windows environments.
@@ -119,5 +119,5 @@ Note: These scripts target Windows and cannot be executed on Linux. Syntax valid
 - Scripts must be idempotent - safe to run multiple times
 - Version detection degrades by state, not uniformly. Where the version API fails but the app is already installed, log a WARN and continue with customizations only. Where the app is absent, throw. A run that installs nothing must fail: a SUCCESS line in the summary for an app that is not on the image is worse than a failed run, because nothing downstream will catch it
 - A non-zero installer exit code is a failure, not a warning, and so is an unchanged version after an install that reported success. The documented exceptions are 1618 (another install in progress) and 3010 (reboot required), which are non-fatal
-- Never leave auto-update mechanisms enabled - this is critical for Gold Image integrity
+- Never leave auto-update mechanisms enabled, unless the vendor's own updater is the designated version owner for that application and the image is not. That exemption is a deliberate decision, recorded in the script's header with the reason, and it requires that no policy or MDM also claim ownership: two owners registering the same package is its own failure mode. Absent such a decision, auto-update is disabled - Gold Image integrity depends on it
 - Adobe Reader version detection scrapes HTML (most fragile); all others use structured APIs
